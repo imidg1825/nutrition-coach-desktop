@@ -1,8 +1,8 @@
 {
-  "completedDays": [1],
-  "skippedDays": [2],
+  "completedDays": [],
+  "skippedDays": [],
   "currentStreak": 0,
-  "progressPercent": 7,
-  "percent": 7,
+  "progressPercent": 0,
+  "percent": 0,
   "streak": 0
 }

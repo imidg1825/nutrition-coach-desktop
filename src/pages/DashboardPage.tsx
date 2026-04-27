@@ -2,6 +2,8 @@ import type { PageProps } from "./pageProps";
 
 export function DashboardPage({ mock, navigate }: PageProps) {
   const { profile, program, progress, coachState } = mock.user;
+  const progressPercent = progress.progressPercent ?? progress.percent;
+  const streakDays = progress.currentStreak ?? progress.streak;
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-xl font-semibold">Главный экран наставника</h1>
@@ -24,13 +26,13 @@ export function DashboardPage({ mock, navigate }: PageProps) {
           <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Прогресс
           </h2>
-          <p className="mt-1 text-2xl font-semibold">{progress.percent}%</p>
+          <p className="mt-1 text-2xl font-semibold">{progressPercent}%</p>
         </section>
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">
             Серия выполнений
           </h2>
-          <p className="mt-1 text-2xl font-semibold">{progress.streak} дн.</p>
+          <p className="mt-1 text-2xl font-semibold">{streakDays} дн.</p>
         </section>
       </div>
       <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">

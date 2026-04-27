@@ -1,6 +1,8 @@
+import { useState } from "react";
 import type { PageProps } from "./pageProps";
 
-export function DayPage({ mock }: PageProps) {
+export function DayPage({ mock, navigate }: PageProps) {
+  const [dayCompleted, setDayCompleted] = useState(false);
   const { program, coachState } = mock.user;
   const rec = mock.content.recommendations.items[0];
   return (
@@ -35,15 +37,37 @@ export function DayPage({ mock }: PageProps) {
         <span className="font-medium text-slate-800">Рекомендация:</span>{" "}
         {rec?.text}
       </p>
-      <button
-        type="button"
-        className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-      >
-        Отметить день выполненным
-      </button>
-      <p className="rounded-md bg-surface-muted p-3 text-sm text-slate-600">
-        Мягкий итог дня после выполнения появится здесь (мок).
-      </p>
+      {!dayCompleted ? (
+        <button
+          type="button"
+          onClick={() => setDayCompleted(true)}
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+        >
+          Отметить день выполненным
+        </button>
+      ) : (
+        <div className="space-y-4">
+          <div
+            role="status"
+            className="rounded-xl border border-green-200/90 bg-green-50/90 px-4 py-3 text-sm leading-relaxed text-green-950"
+          >
+            День отмечен выполненным. Отличный старт — можно вернуться на
+            главный экран или продолжить завтра.
+          </div>
+          <button
+            type="button"
+            onClick={() => navigate("dashboard")}
+            className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+          >
+            Вернуться на главный экран
+          </button>
+        </div>
+      )}
+      {!dayCompleted ? (
+        <p className="rounded-md bg-surface-muted p-3 text-sm text-slate-600">
+          Мягкий итог дня после выполнения появится здесь (мок).
+        </p>
+      ) : null}
     </div>
   );
 }
