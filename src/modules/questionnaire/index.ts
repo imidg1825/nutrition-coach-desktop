@@ -1,2 +1,21 @@
-/** Анкета и типы данных — логика на следующих этапах. */
-export {};
+export type {
+  ActivityLevelLmh,
+  ClientQuestionnaire,
+  ComfortablePace,
+  FoodBudgetLevel,
+  FrequencyNeverSometimesOften,
+  ProductAvailability,
+  ProgramDurationDays,
+  QuestionnaireBasics,
+  QuestionnaireBudgetSeasonAndAvailability,
+  QuestionnaireDayScheduleAndWork,
+  QuestionnaireFoodAndProducts,
+  QuestionnaireGoalAndDuration,
+  QuestionnaireHabitsDifficultiesAndSupport,
+  QuestionnaireMedicalParticularities,
+  SeasonChoice,
+  SupportTone,
+  WorkType,
+  YesNoSometimes,
+} from "./types";
+export { questionnaireDefaults } from "./questionnaireDefaults";

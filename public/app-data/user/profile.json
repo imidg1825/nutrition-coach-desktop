@@ -7,7 +7,72 @@
   "programDays": 14,
   "dietRestrictions": "Без лактозы",
   "activityLevel": "Умеренная",
-  "currentHabits": "Поздний ужин",
+  "currentHabits": "Вода утром, прогулки в выходные",
   "mainDifficulties": "Перекусы",
-  "desiredResult": "Стабильный режим дня"
+  "desiredResult": "Стабильный режим дня",
+  "questionnaire": {
+    "basics": {
+      "firstName": "Мария",
+      "age": 32,
+      "heightCm": 165,
+      "weightKg": 62,
+      "cityOrRegion": "Москва и область"
+    },
+    "goalAndDuration": {
+      "primaryGoal": "Больше энергии и ритм питания",
+      "programDurationDays": 14,
+      "desiredOutcome": "Стабильный режим дня без жёстких ограничений",
+      "comfortablePace": "мягкий"
+    },
+    "medicalParticularities": {
+      "hasMedicalParticularities": false,
+      "medicalParticularitiesDescription": "",
+      "foodAllergies": "",
+      "intolerances": "Лактоза",
+      "medicalDietaryRestrictions": ""
+    },
+    "dayScheduleAndWork": {
+      "wakeTime": "07:00",
+      "sleepTime": "23:30",
+      "workType": "удалённая",
+      "workScheduleNotes": "Пн–Пт, гибкое начало дня",
+      "usualMealTimesNotes": "Завтрак около 9:00, обед 13:00–14:00, ужин 19:00–20:00",
+      "activityLevel": "средний"
+    },
+    "foodAndProducts": {
+      "mealsPerDay": 3,
+      "usualBreakfast": "Каша или тосты, кофе",
+      "usualLunch": "Суп или салат с белком",
+      "usualDinner": "Рыба или птица с овощами",
+      "favoriteFoods": "Рыба, овощи на гриле, ягоды",
+      "foodsNotEaten": "Молочные продукты с лактозой",
+      "sweetCraving": "иногда",
+      "eveningSnacks": "иногда",
+      "commonNutritionChallenges": "Перекусы вечером при усталости"
+    },
+    "budgetSeasonAndAvailability": {
+      "foodBudget": "средний",
+      "productAvailability": "обычные магазины",
+      "season": "авто",
+      "willingToBuyRareProducts": "иногда",
+      "needsSimpleProductSubstitutions": "да"
+    },
+    "habitsDifficultiesAndSupport": {
+      "helpfulHabitsNotes": "Вода утром, прогулки в выходные",
+      "habitsHinderingProgressNotes": "Поздний ужин, перекусы при стрессе",
+      "smokingNotes": "нет",
+      "alcoholNotes": "редко, по случаям",
+      "frequentSweetenedDrinks": "иногда",
+      "fastFoodFrequency": "иногда",
+      "nightSnacks": "иногда",
+      "stressOvereating": "иногда",
+      "skippedBreakfastOrLunch": "иногда",
+      "insufficientSleep": "иногда",
+      "lowPhysicalActivity": "иногда",
+      "mainChallenges": "Перекусы и сбитый ритм дня",
+      "whatOftenGetsInTheWay": "Усталость после работы",
+      "reactionToSkips": "Хочется наверстать сразу, но лучше мягко вернуться",
+      "preferredSupportTone": "мягкий"
+    }
+  }
 }

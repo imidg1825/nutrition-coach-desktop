@@ -1,0 +1,68 @@
+import type { ClientQuestionnaire } from "./types";
+
+/** Начальное состояние анкеты для MVP (мок / сиды). */
+export const questionnaireDefaults = {
+  basics: {
+    firstName: "",
+    age: 0,
+    heightCm: 0,
+    weightKg: 0,
+    cityOrRegion: "",
+  },
+  goalAndDuration: {
+    primaryGoal: "",
+    programDurationDays: 14,
+    desiredOutcome: "",
+    comfortablePace: "мягкий",
+  },
+  medicalParticularities: {
+    hasMedicalParticularities: false,
+    medicalParticularitiesDescription: "",
+    foodAllergies: "",
+    intolerances: "",
+    medicalDietaryRestrictions: "",
+  },
+  dayScheduleAndWork: {
+    wakeTime: "",
+    sleepTime: "",
+    workType: "сидячая",
+    workScheduleNotes: "",
+    usualMealTimesNotes: "",
+    activityLevel: "средний",
+  },
+  foodAndProducts: {
+    mealsPerDay: 3,
+    usualBreakfast: "",
+    usualLunch: "",
+    usualDinner: "",
+    favoriteFoods: "",
+    foodsNotEaten: "",
+    sweetCraving: "иногда",
+    eveningSnacks: "иногда",
+    commonNutritionChallenges: "",
+  },
+  budgetSeasonAndAvailability: {
+    foodBudget: "средний",
+    productAvailability: "обычные магазины",
+    season: "авто",
+    willingToBuyRareProducts: "иногда",
+    needsSimpleProductSubstitutions: "да",
+  },
+  habitsDifficultiesAndSupport: {
+    helpfulHabitsNotes: "",
+    habitsHinderingProgressNotes: "",
+    smokingNotes: "",
+    alcoholNotes: "",
+    frequentSweetenedDrinks: "иногда",
+    fastFoodFrequency: "иногда",
+    nightSnacks: "иногда",
+    stressOvereating: "иногда",
+    skippedBreakfastOrLunch: "иногда",
+    insufficientSleep: "иногда",
+    lowPhysicalActivity: "иногда",
+    mainChallenges: "",
+    whatOftenGetsInTheWay: "",
+    reactionToSkips: "",
+    preferredSupportTone: "мягкий",
+  },
+} satisfies ClientQuestionnaire;
