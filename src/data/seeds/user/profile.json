@@ -1,0 +1,13 @@
+{
+  "clientName": "Мария",
+  "age": 32,
+  "heightCm": 165,
+  "weightKg": 62,
+  "goal": "Больше энергии и ритм питания",
+  "programDays": 14,
+  "dietRestrictions": "Без лактозы",
+  "activityLevel": "Умеренная",
+  "currentHabits": "Поздний ужин",
+  "mainDifficulties": "Перекусы",
+  "desiredResult": "Стабильный режим дня"
+}

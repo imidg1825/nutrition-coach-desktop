@@ -1,0 +1,12 @@
+export { AboutNutritionistPage } from "./AboutNutritionistPage";
+export { BuildingProgramPage } from "./BuildingProgramPage";
+export { CalendarPage } from "./CalendarPage";
+export { DashboardPage } from "./DashboardPage";
+export { DayPage } from "./DayPage";
+export { FinishPage } from "./FinishPage";
+export { ProgressPage } from "./ProgressPage";
+export { QuestionnairePage } from "./QuestionnairePage";
+export { RecommendationsPage } from "./RecommendationsPage";
+export { SettingsPage } from "./SettingsPage";
+export { StartPage } from "./StartPage";
+export { UpdatesPage } from "./UpdatesPage";
