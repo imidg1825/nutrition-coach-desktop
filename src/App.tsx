@@ -11,6 +11,7 @@ import {
   ProgressPage,
   QuestionnairePage,
   RecommendationsPage,
+  NutritionPlanPage,
   SettingsPage,
   StartPage,
   UpdatesPage,
@@ -48,6 +49,14 @@ export default function App() {
     case "building":
       body = (
         <BuildingProgramPage
+          {...pageProps}
+          clientQuestionnaire={clientQuestionnaire}
+        />
+      );
+      break;
+    case "nutritionPlan":
+      body = (
+        <NutritionPlanPage
           {...pageProps}
           clientQuestionnaire={clientQuestionnaire}
         />

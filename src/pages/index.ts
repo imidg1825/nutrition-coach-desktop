@@ -5,6 +5,7 @@ export { DashboardPage } from "./DashboardPage";
 export { DayPage } from "./DayPage";
 export { FinishPage } from "./FinishPage";
 export { ProgressPage } from "./ProgressPage";
+export { NutritionPlanPage } from "./NutritionPlanPage";
 export { QuestionnairePage } from "./QuestionnairePage";
 export { RecommendationsPage } from "./RecommendationsPage";
 export { SettingsPage } from "./SettingsPage";

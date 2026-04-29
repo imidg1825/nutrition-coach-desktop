@@ -3,6 +3,7 @@ export type Screen =
   | "about"
   | "questionnaire"
   | "building"
+  | "nutritionPlan"
   | "dashboard"
   | "calendar"
   | "day"

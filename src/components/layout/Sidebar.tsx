@@ -7,6 +7,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "about", label: "О нутрициологе" },
   { id: "questionnaire", label: "Анкета" },
   { id: "building", label: "Сборка программы" },
+  { id: "nutritionPlan", label: "План питания" },
   { id: "dashboard", label: "Главный экран" },
   { id: "calendar", label: "Календарь" },
   { id: "day", label: "День" },
