@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   questionnaireDefaults,
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
+import { buildPersonalProgram } from "../modules/programBuilder";
 import type { PageProps } from "./pageProps";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
@@ -38,9 +39,10 @@ function completeDayInProgramSession(): { currentDay: number; totalDays: number 
   const fallback = { currentDay: 1, totalDays: 14 };
   try {
     const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
+    const parsedUnknown: unknown = raw ? JSON.parse(raw) : null;
     const parsed: Record<string, unknown> =
-      raw && typeof JSON.parse(raw) === "object" && JSON.parse(raw) !== null
-        ? (JSON.parse(raw) as Record<string, unknown>)
+      parsedUnknown && typeof parsedUnknown === "object"
+        ? (parsedUnknown as Record<string, unknown>)
         : {};
     const currentDay =
       typeof parsed.currentDay === "number" && parsed.currentDay > 0
@@ -61,6 +63,21 @@ function completeDayInProgramSession(): { currentDay: number; totalDays: number 
     return { currentDay: nextDay, totalDays };
   } catch {
     return fallback;
+  }
+}
+
+function persistProgramSessionCurrentDay(day: number): void {
+  try {
+    const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
+    const parsedUnknown: unknown = raw ? JSON.parse(raw) : null;
+    const parsed: Record<string, unknown> =
+      parsedUnknown && typeof parsedUnknown === "object"
+        ? (parsedUnknown as Record<string, unknown>)
+        : {};
+    const nextSession = { ...parsed, currentDay: day, currentScreen: "day" };
+    localStorage.setItem(PROGRAM_SESSION_STORAGE_KEY, JSON.stringify(nextSession));
+  } catch {
+    // no-op: keep UI responsive even if storage is unavailable
   }
 }
 
@@ -117,46 +134,62 @@ export function DayPage({
   const [sessionTotalDays] = useState(
     initialSession.totalDays ?? mock.user.program.totalDays,
   );
-  const { coachState } = mock.user;
   const q = clientQuestionnaire ?? mergeQuestionnaireFromProfile(mock.user.profile);
-  const mealsPerDay = q.foodAndProducts.mealsPerDay;
-  const snacksAndTiming = q.foodAndProducts.snacksAndTiming.trim();
-  const goalText = `${q.goalAndDuration.primaryGoal} ${q.goalAndDuration.desiredOutcome}`.toLowerCase();
-  const weightLossGoal =
-    goalText.includes("похуд") ||
-    goalText.includes("снизить вес") ||
-    goalText.includes("минус") ||
-    goalText.includes("кг") ||
-    goalText.includes("килограмм");
-  const hasMedicalData =
-    q.medicalParticularities.hasMedicalParticularities ||
-    [
-      q.medicalParticularities.medicalParticularitiesDescription,
-      q.medicalParticularities.foodAllergies,
-      q.medicalParticularities.intolerances,
-      q.medicalParticularities.medicalDietaryRestrictions,
-    ].some((v) => v.trim().length > 0);
+  const personalProgram = useMemo(() => buildPersonalProgram(q), [q]);
+  const currentProgramDay =
+    personalProgram.days[sessionCurrentDay - 1] ??
+    personalProgram.days[personalProgram.days.length - 1];
+  const hasMedicalData = Boolean(personalProgram.nutritionRules.medicalNote);
+  const weightLossGoal = personalProgram.nutritionRules.weightLossGoal;
   const rec = mock.content.recommendations.items[0];
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <h1 className="text-xl font-semibold">
         День {sessionCurrentDay} из {sessionTotalDays}
       </h1>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => {
+            const nextDay = Math.max(1, sessionCurrentDay - 1);
+            setSessionCurrentDay(nextDay);
+            persistProgramSessionCurrentDay(nextDay);
+          }}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          Предыдущий день
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const nextDay = Math.min(sessionTotalDays, sessionCurrentDay + 1);
+            setSessionCurrentDay(nextDay);
+            persistProgramSessionCurrentDay(nextDay);
+          }}
+          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+        >
+          Следующий день
+        </button>
+      </div>
       <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
         <p>
           <span className="text-slate-500">Настрой дня:</span>{" "}
-          {coachState.dayMood}
+          {currentProgramDay.mood}
         </p>
         <p>
-          <span className="text-slate-500">Фокус дня:</span> {coachState.dayTask}
+          <span className="text-slate-500">Фокус дня:</span> {currentProgramDay.focus}
         </p>
         <p>
           <span className="text-slate-500">Привычка дня:</span>{" "}
-          {coachState.dayHabit}
+          {currentProgramDay.habit}
         </p>
         <p>
           <span className="text-slate-500">Задание дня:</span>{" "}
-          {coachState.dayTask}
+          {currentProgramDay.task}
+        </p>
+        <p>
+          <span className="text-slate-500">Поддержка дня:</span>{" "}
+          {currentProgramDay.supportMessage}
         </p>
       </section>
       <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -181,54 +214,43 @@ export function DayPage({
             Порции умеренные, перекусы небольшие.
           </p>
         ) : null}
-        <ul className="list-inside list-disc space-y-1 text-sm text-slate-700">
-          <li>
-            <span className="font-medium">Завтрак:</span> овсянка на воде с
-            яблоком.
-          </li>
-          <li>
-            <span className="font-medium">Обед:</span> гречка с курицей и
-            овощами.
-          </li>
-          <li>
-            <span className="font-medium">Ужин:</span> рыба или птица с
-            тушёными овощами.
-          </li>
-        </ul>
-        {mealsPerDay > 3 ? (
-          <div className="mt-2 space-y-1 text-sm text-slate-700">
-            {snacksAndTiming ? (
-              weightLossGoal ? (
-                <>
-                  <p>
-                    <span className="font-medium">Текущий перекус:</span>{" "}
-                    {snacksAndTiming}
-                  </p>
-                  <p>
-                    <span className="font-medium">Мягкая замена:</span> фрукт,
-                    яйцо, овощи или чай без сахара
-                  </p>
-                </>
-              ) : (
+        <div className="space-y-3">
+          {currentProgramDay?.meals.map((meal) => (
+            <div key={`${currentProgramDay.dayNumber}-${meal.type}`} className="rounded-md border border-slate-100 bg-slate-50/70 p-3 text-sm text-slate-700">
+              <p className="font-medium text-slate-900">{meal.title}</p>
+              <p>
+                <span className="text-slate-500">Блюдо:</span> {meal.dish}
+              </p>
+              <p>
+                <span className="text-slate-500">Порция:</span> {meal.portion}
+              </p>
+              <p>
+                <span className="text-slate-500">Как готовить:</span> {meal.cooking}
+              </p>
+              {meal.replacement ? (
                 <p>
-                  <span className="font-medium">Перекус:</span>{" "}
-                  {snacksAndTiming}
+                  <span className="text-slate-500">Замена:</span> {meal.replacement}
                 </p>
-              )
-            ) : (
-              <p>
-                <span className="font-medium">Перекус:</span> фрукт, яйцо или
-                чай без сахара
-              </p>
-            )}
-            {mealsPerDay > 4 ? (
-              <p>
-                <span className="font-medium">Второй перекус:</span> овощи,
-                яйцо или чай без сахара
-              </p>
-            ) : null}
-          </div>
-        ) : null}
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <h2 className="mb-2 text-sm font-medium text-slate-800">
+          Если день пошёл не по плану
+        </h2>
+        <div className="space-y-2 text-sm text-slate-700">
+          {[
+            currentProgramDay.alternatives.cafeOrCanteen,
+            currentProgramDay.alternatives.takeAway,
+            currentProgramDay.alternatives.quickOption,
+          ]
+            .filter((text) => text.trim().length > 0)
+            .map((text, idx) => (
+              <p key={`${currentProgramDay.dayNumber}-alternative-${idx}`}>{text}</p>
+            ))}
+        </div>
       </section>
       <p className="text-sm text-slate-600">
         <span className="font-medium text-slate-800">Рекомендация:</span>{" "}

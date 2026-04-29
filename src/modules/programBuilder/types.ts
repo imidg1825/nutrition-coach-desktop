@@ -17,9 +17,15 @@ export type ProgramMeal = {
 export type ProgramDay = {
   dayNumber: number;
   mood: string;
+  focus: string;
   habit: string;
   task: string;
   supportMessage: string;
+  alternatives: {
+    cafeOrCanteen: string;
+    takeAway: string;
+    quickOption: string;
+  };
   meals: ProgramMeal[];
 };
 
