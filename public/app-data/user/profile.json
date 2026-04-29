@@ -73,6 +73,18 @@
       "whatOftenGetsInTheWay": "Усталость после работы",
       "reactionToSkips": "Хочется наверстать сразу, но лучше мягко вернуться",
       "preferredSupportTone": "мягкий"
+    },
+    "cookingHabitsAndMethods": {
+      "usualCookingMethods": "Варка, тушение, иногда жарка",
+      "friedFoodFrequency": "sometimes",
+      "cookingTimeAvailable": "15_30_min",
+      "availableKitchenTools": "Плита, духовка, микроволновка",
+      "sugarAddingFrequency": "sometimes",
+      "sweetDrinksFrequency": "sometimes",
+      "saltUsage": "moderate",
+      "spicySaucesAndSpicesUsage": "sometimes",
+      "easyToReplace": "Сладкие напитки на воду и чай без сахара",
+      "cookingMethodsToAvoid": "Долгая жарка во фритюре"
     }
   }
 }

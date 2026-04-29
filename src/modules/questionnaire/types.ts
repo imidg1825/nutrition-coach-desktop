@@ -1,7 +1,8 @@
 /**
  * Полная анкета клиента (раздел 31 PROJECT_SPEC.md).
- * Семь шагов: базовые данные → цель и срок → медицинские особенности → режим дня и работа →
- * питание и продукты → бюджет и доступность → привычки, сложности и мягкое сопровождение.
+ * Восемь шагов: базовые данные → цель и срок → медицинские особенности → режим дня и работа →
+ * питание и продукты → бюджет и доступность → привычки, сложности и мягкое сопровождение →
+ * пищевые привычки и способы приготовления.
  */
 
 /** Шаг 1. Базовые данные — для кого собирается программа. */
@@ -127,8 +128,32 @@ export type QuestionnaireHabitsDifficultiesAndSupport = {
   preferredSupportTone: SupportTone;
 };
 
+/** no / sometimes / often — частота для шага 8 (технические коды для UI/логики). */
+export type FrequencyNoSometimesOften = "no" | "sometimes" | "often";
+
+export type CookingTimeAvailable =
+  | "under_15_min"
+  | "15_30_min"
+  | "can_prepare_ahead";
+
+export type SaltUsage = "low" | "moderate" | "high";
+
+/** Шаг 8. Пищевые привычки и способы приготовления. */
+export type QuestionnaireCookingHabitsAndMethods = {
+  usualCookingMethods: string;
+  friedFoodFrequency: FrequencyNoSometimesOften;
+  cookingTimeAvailable: CookingTimeAvailable;
+  availableKitchenTools: string;
+  sugarAddingFrequency: FrequencyNoSometimesOften;
+  sweetDrinksFrequency: FrequencyNoSometimesOften;
+  saltUsage: SaltUsage;
+  spicySaucesAndSpicesUsage: FrequencyNoSometimesOften;
+  easyToReplace: string;
+  cookingMethodsToAvoid: string;
+};
+
 /**
- * Полная анкета по 7 шагам спецификации.
+ * Полная анкета по 8 шагам спецификации.
  * Используется как единая модель данных; плоские поля профиля в сидах могут дублировать часть значений для обратной совместимости с каркасом UI.
  */
 export type ClientQuestionnaire = {
@@ -139,4 +164,5 @@ export type ClientQuestionnaire = {
   foodAndProducts: QuestionnaireFoodAndProducts;
   budgetSeasonAndAvailability: QuestionnaireBudgetSeasonAndAvailability;
   habitsDifficultiesAndSupport: QuestionnaireHabitsDifficultiesAndSupport;
+  cookingHabitsAndMethods?: QuestionnaireCookingHabitsAndMethods;
 };

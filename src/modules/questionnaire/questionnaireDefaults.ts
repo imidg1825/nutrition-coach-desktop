@@ -65,4 +65,16 @@ export const questionnaireDefaults = {
     reactionToSkips: "",
     preferredSupportTone: "мягкий",
   },
+  cookingHabitsAndMethods: {
+    usualCookingMethods: "",
+    friedFoodFrequency: "sometimes",
+    cookingTimeAvailable: "15_30_min",
+    availableKitchenTools: "",
+    sugarAddingFrequency: "sometimes",
+    sweetDrinksFrequency: "sometimes",
+    saltUsage: "moderate",
+    spicySaucesAndSpicesUsage: "sometimes",
+    easyToReplace: "",
+    cookingMethodsToAvoid: "",
+  },
 } satisfies ClientQuestionnaire;
