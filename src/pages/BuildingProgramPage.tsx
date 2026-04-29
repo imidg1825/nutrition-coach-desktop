@@ -1,8 +1,11 @@
 import { useMemo, useState } from "react";
 import {
   questionnaireDefaults,
+  type CookingTimeAvailable,
   type ClientQuestionnaire,
+  type FrequencyNoSometimesOften,
   type SupportTone,
+  type SaltUsage,
 } from "../modules/questionnaire";
 import type { PageProps } from "./pageProps";
 
@@ -37,6 +40,12 @@ function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
       ...questionnaireDefaults.habitsDifficultiesAndSupport,
       ...q.habitsDifficultiesAndSupport,
     },
+    cookingHabitsAndMethods: q.cookingHabitsAndMethods
+      ? {
+          ...questionnaireDefaults.cookingHabitsAndMethods,
+          ...q.cookingHabitsAndMethods,
+        }
+      : undefined,
   };
 }
 
@@ -48,6 +57,44 @@ function capitalizeFirst(s: string): string {
 function seasonLabel(s: string): string {
   if (s === "авто") return "Авто (по дате)";
   return capitalizeFirst(s);
+}
+
+function frequencyLabel(v: FrequencyNoSometimesOften | undefined): string {
+  if (!v) return "—";
+  switch (v) {
+    case "no":
+      return "Нет";
+    case "sometimes":
+      return "Иногда";
+    case "often":
+      return "Часто";
+  }
+}
+
+function cookingTimeAvailableLabel(
+  v: CookingTimeAvailable | undefined,
+): string {
+  if (!v) return "—";
+  switch (v) {
+    case "under_15_min":
+      return "До 15 минут";
+    case "15_30_min":
+      return "15–30 минут";
+    case "can_prepare_ahead":
+      return "Могу готовить заранее";
+  }
+}
+
+function saltUsageLabel(v: SaltUsage | undefined): string {
+  if (!v) return "—";
+  switch (v) {
+    case "low":
+      return "Мало";
+    case "moderate":
+      return "Умеренно";
+    case "high":
+      return "Много";
+  }
 }
 
 function mealsPerDayPhrase(mealsPerDay: number): string {
@@ -86,14 +133,28 @@ function PreviewCard({ label, value }: { label: string; value: string }) {
   );
 }
 
-const MEDICAL_PREVIEW_NOTE =
-  "Вы указали медицинские особенности. Программа предложит только общие мягкие рекомендации и привычки, без лечебного рациона.";
+function notSpecified(s: string): string {
+  return s.trim() ? s : "Не указано";
+}
 
-export function BuildingProgramPage({ mock, navigate }: PageProps) {
-  const q = useMemo(
+function hasAnyMedicalData(m: ClientQuestionnaire["medicalParticularities"]): boolean {
+  return (
+    m.hasMedicalParticularities ||
+    [m.medicalParticularitiesDescription, m.foodAllergies, m.intolerances, m.medicalDietaryRestrictions]
+      .some((v) => v.trim().length > 0)
+  );
+}
+
+export function BuildingProgramPage({
+  mock,
+  navigate,
+  clientQuestionnaire,
+}: PageProps & { clientQuestionnaire: ClientQuestionnaire | null }) {
+  const fallbackQ = useMemo(
     () => mergeQuestionnaireFromProfile(mock.user.profile),
     [mock.user.profile],
   );
+  const q = clientQuestionnaire ?? fallbackQ;
 
   const [assembled, setAssembled] = useState(false);
 
@@ -108,7 +169,8 @@ export function BuildingProgramPage({ mock, navigate }: PageProps) {
       : "") ||
     "—";
 
-  const showMedicalNote = q.medicalParticularities.hasMedicalParticularities;
+  const showMedicalNote = hasAnyMedicalData(q.medicalParticularities);
+  const cooking = q.cookingHabitsAndMethods;
 
   const programDurationDays = q.goalAndDuration.programDurationDays;
   const supportPreview = supportPreviewByTone(
@@ -128,12 +190,40 @@ export function BuildingProgramPage({ mock, navigate }: PageProps) {
       </header>
 
       {showMedicalNote ? (
-        <div
-          className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-950"
-          role="note"
+        <section
+          className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-4 text-sm leading-relaxed text-amber-950"
+          aria-labelledby="medical-preview-heading"
         >
-          {MEDICAL_PREVIEW_NOTE}
-        </div>
+          <h2
+            id="medical-preview-heading"
+            className="text-base font-semibold tracking-tight"
+          >
+            Медицинские особенности и ограничения
+          </h2>
+          <div className="mt-3 space-y-2">
+            <p>
+              <span className="font-medium">Медицинские особенности:</span>{" "}
+              {notSpecified(q.medicalParticularities.medicalParticularitiesDescription)}
+            </p>
+            <p>
+              <span className="font-medium">Аллергии:</span>{" "}
+              {notSpecified(q.medicalParticularities.foodAllergies)}
+            </p>
+            <p>
+              <span className="font-medium">Непереносимости:</span>{" "}
+              {notSpecified(q.medicalParticularities.intolerances)}
+            </p>
+            <p>
+              <span className="font-medium">Врачебные ограничения:</span>{" "}
+              {notSpecified(q.medicalParticularities.medicalDietaryRestrictions)}
+            </p>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-amber-950/95">
+            С учётом указанных особенностей программа будет избегать
+            потенциально неподходящих продуктов и способов приготовления. Для
+            точных рекомендаций лучше согласовать питание с профильным врачом.
+          </p>
+        </section>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -162,6 +252,12 @@ export function BuildingProgramPage({ mock, navigate }: PageProps) {
           label="Количество приёмов пищи"
           value={String(q.foodAndProducts.mealsPerDay)}
         />
+        {q.foodAndProducts.mealsPerDay > 3 ? (
+          <PreviewCard
+            label="Перекусы"
+            value={q.foodAndProducts.snacksAndTiming}
+          />
+        ) : null}
         <PreviewCard
           label="Уровень активности"
           value={capitalizeFirst(q.dayScheduleAndWork.activityLevel)}
@@ -171,6 +267,37 @@ export function BuildingProgramPage({ mock, navigate }: PageProps) {
           value={capitalizeFirst(
             q.habitsDifficultiesAndSupport.preferredSupportTone,
           )}
+        />
+
+        <PreviewCard
+          label="Как обычно готовит"
+          value={cooking?.usualCookingMethods ?? "—"}
+        />
+        <PreviewCard
+          label="Время на приготовление"
+          value={cookingTimeAvailableLabel(cooking?.cookingTimeAvailable)}
+        />
+        <PreviewCard
+          label="Частота жареного"
+          value={frequencyLabel(cooking?.friedFoodFrequency)}
+        />
+        <PreviewCard label="Сахар" value={frequencyLabel(cooking?.sugarAddingFrequency)} />
+        <PreviewCard
+          label="Сладкие напитки"
+          value={frequencyLabel(cooking?.sweetDrinksFrequency)}
+        />
+        <PreviewCard label="Соль" value={saltUsageLabel(cooking?.saltUsage)} />
+        <PreviewCard
+          label="Доступная техника"
+          value={cooking?.availableKitchenTools ?? "—"}
+        />
+        <PreviewCard
+          label="Что готов заменить"
+          value={cooking?.easyToReplace ?? "—"}
+        />
+        <PreviewCard
+          label="Что не подходит"
+          value={cooking?.cookingMethodsToAvoid ?? "—"}
         />
       </div>
 

@@ -76,6 +76,7 @@ export type QuestionnaireFoodAndProducts = {
   foodsNotEaten: string;
   sweetCraving: FrequencyNeverSometimesOften;
   eveningSnacks: FrequencyNeverSometimesOften;
+  snacksAndTiming: string;
   commonNutritionChallenges: string;
 };
 

@@ -3,11 +3,14 @@ import {
   questionnaireDefaults,
   type ActivityLevelLmh,
   type ClientQuestionnaire,
+  type CookingTimeAvailable,
   type ComfortablePace,
+  type FrequencyNoSometimesOften,
   type FoodBudgetLevel,
   type FrequencyNeverSometimesOften,
   type ProductAvailability,
   type ProgramDurationDays,
+  type SaltUsage,
   type SeasonChoice,
   type SupportTone,
   type WorkType,
@@ -15,7 +18,7 @@ import {
 } from "../modules/questionnaire";
 import type { PageProps } from "./pageProps";
 
-const STEP_COUNT = 7;
+const STEP_COUNT = 8;
 
 const STEP_TITLES = [
   "Базовые данные",
@@ -25,6 +28,7 @@ const STEP_TITLES = [
   "Питание и продукты",
   "Бюджет, сезонность и доступность",
   "Привычки, сложности и мягкое сопровождение",
+  "Пищевые привычки и способы приготовления",
 ] as const;
 
 const MEDICAL_WARNING =
@@ -61,6 +65,10 @@ function deepMergeQuestionnaire(
     habitsDifficultiesAndSupport: {
       ...questionnaireDefaults.habitsDifficultiesAndSupport,
       ...q.habitsDifficultiesAndSupport,
+    },
+    cookingHabitsAndMethods: {
+      ...questionnaireDefaults.cookingHabitsAndMethods,
+      ...q.cookingHabitsAndMethods,
     },
   };
 }
@@ -156,10 +164,18 @@ function SegmentedTri<T extends string>({
   );
 }
 
-export function QuestionnairePage({ mock, navigate }: PageProps) {
+export function QuestionnairePage({
+  mock,
+  navigate,
+  initialQuestionnaire,
+  onQuestionnaireComplete,
+}: PageProps & {
+  initialQuestionnaire: ClientQuestionnaire | null;
+  onQuestionnaireComplete: (questionnaire: ClientQuestionnaire) => void;
+}) {
   const initial = useMemo(
-    () => deepMergeQuestionnaire(mock.user.profile),
-    [mock.user.profile],
+    () => initialQuestionnaire ?? deepMergeQuestionnaire(mock.user.profile),
+    [initialQuestionnaire, mock.user.profile],
   );
   const [form, setForm] = useState<ClientQuestionnaire>(initial);
   const [step, setStep] = useState(1);
@@ -172,6 +188,7 @@ export function QuestionnairePage({ mock, navigate }: PageProps) {
 
   const handleRightAction = () => {
     if (step === STEP_COUNT) {
+      onQuestionnaireComplete(form);
       setQuestionnaireFinished(true);
       return;
     }
@@ -708,6 +725,25 @@ export function QuestionnairePage({ mock, navigate }: PageProps) {
                 ]}
               />
             </Field>
+            {form.foodAndProducts.mealsPerDay > 3 ? (
+              <Field label="Обычные перекусы и время">
+                <textarea
+                  rows={2}
+                  className={`${inputClass} resize-y`}
+                  value={form.foodAndProducts.snacksAndTiming}
+                  placeholder="Например: 10:00 — чай с печеньем; 16:00 — йогурт или фрукт; вечером — чай. Если перекусов несколько, укажите их все в одном поле."
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      foodAndProducts: {
+                        ...f.foodAndProducts,
+                        snacksAndTiming: e.target.value,
+                      },
+                    }))
+                  }
+                />
+              </Field>
+            ) : null}
             <Field label="Частые сложности с питанием">
               <textarea
                 rows={3}
@@ -1021,6 +1057,220 @@ export function QuestionnairePage({ mock, navigate }: PageProps) {
                   { value: "нейтральный", label: "Нейтральный" },
                   { value: "бодрый", label: "Бодрый" },
                 ]}
+              />
+            </Field>
+          </div>
+        ) : null}
+
+        {step === 8 ? (
+          <div className="space-y-5">
+            <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700">
+              Расскажите, как вы обычно готовите и какие пищевые привычки сейчас
+              есть. Это нужно не для оценки, а чтобы программа предложила
+              реалистичные и более полезные варианты.
+            </p>
+            <Field label="Как вы обычно готовите">
+              <textarea
+                rows={3}
+                className={`${inputClass} resize-y`}
+                value={form.cookingHabitsAndMethods?.usualCookingMethods ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      usualCookingMethods: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="Например: чаще тушу и запекаю, иногда жарю."
+              />
+            </Field>
+            <Field label="Как часто едите жареное">
+              <SegmentedTri<FrequencyNoSometimesOften>
+                value={
+                  form.cookingHabitsAndMethods?.friedFoodFrequency ?? "sometimes"
+                }
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      friedFoodFrequency: v,
+                    },
+                  }))
+                }
+                options={[
+                  { value: "no", label: "Нет" },
+                  { value: "sometimes", label: "Иногда" },
+                  { value: "often", label: "Часто" },
+                ]}
+              />
+            </Field>
+            <Field label="Сколько времени обычно есть на приготовление еды">
+              <SegmentedTri<CookingTimeAvailable>
+                value={
+                  form.cookingHabitsAndMethods?.cookingTimeAvailable ??
+                  "15_30_min"
+                }
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      cookingTimeAvailable: v,
+                    },
+                  }))
+                }
+                options={[
+                  { value: "under_15_min", label: "До 15 минут" },
+                  { value: "15_30_min", label: "15-30 минут" },
+                  { value: "can_prepare_ahead", label: "Могу готовить заранее" },
+                ]}
+              />
+            </Field>
+            <Field label="Какая техника доступна">
+              <textarea
+                rows={2}
+                className={`${inputClass} resize-y`}
+                value={form.cookingHabitsAndMethods?.availableKitchenTools ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      availableKitchenTools: e.target.value,
+                    },
+                  }))
+                }
+                placeholder="Например: плита, духовка, мультиварка."
+              />
+            </Field>
+            <Field label="Как часто добавляете сахар">
+              <SegmentedTri<FrequencyNoSometimesOften>
+                value={
+                  form.cookingHabitsAndMethods?.sugarAddingFrequency ??
+                  "sometimes"
+                }
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      sugarAddingFrequency: v,
+                    },
+                  }))
+                }
+                options={[
+                  { value: "no", label: "Нет" },
+                  { value: "sometimes", label: "Иногда" },
+                  { value: "often", label: "Часто" },
+                ]}
+              />
+            </Field>
+            <Field label="Как часто пьёте сладкие напитки">
+              <SegmentedTri<FrequencyNoSometimesOften>
+                value={
+                  form.cookingHabitsAndMethods?.sweetDrinksFrequency ??
+                  "sometimes"
+                }
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      sweetDrinksFrequency: v,
+                    },
+                  }))
+                }
+                options={[
+                  { value: "no", label: "Нет" },
+                  { value: "sometimes", label: "Иногда" },
+                  { value: "often", label: "Часто" },
+                ]}
+              />
+            </Field>
+            <Field label="Как обычно солите еду">
+              <SegmentedTri<SaltUsage>
+                value={form.cookingHabitsAndMethods?.saltUsage ?? "moderate"}
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      saltUsage: v,
+                    },
+                  }))
+                }
+                options={[
+                  { value: "low", label: "Мало" },
+                  { value: "moderate", label: "Умеренно" },
+                  { value: "high", label: "Много" },
+                ]}
+              />
+            </Field>
+            <Field label="Использование острых соусов и специй">
+              <SegmentedTri<FrequencyNoSometimesOften>
+                value={
+                  form.cookingHabitsAndMethods?.spicySaucesAndSpicesUsage ??
+                  "sometimes"
+                }
+                onChange={(v) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      spicySaucesAndSpicesUsage: v,
+                    },
+                  }))
+                }
+                options={[
+                  { value: "no", label: "Нет" },
+                  { value: "sometimes", label: "Иногда" },
+                  { value: "often", label: "Часто" },
+                ]}
+              />
+            </Field>
+            <Field label="Что готовы заменить без сильного стресса">
+              <textarea
+                rows={2}
+                className={`${inputClass} resize-y`}
+                value={form.cookingHabitsAndMethods?.easyToReplace ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      easyToReplace: e.target.value,
+                    },
+                  }))
+                }
+              />
+            </Field>
+            <Field label="Какие способы готовки точно не подходят">
+              <textarea
+                rows={2}
+                className={`${inputClass} resize-y`}
+                value={form.cookingHabitsAndMethods?.cookingMethodsToAvoid ?? ""}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    cookingHabitsAndMethods: {
+                      ...questionnaireDefaults.cookingHabitsAndMethods,
+                      ...f.cookingHabitsAndMethods,
+                      cookingMethodsToAvoid: e.target.value,
+                    },
+                  }))
+                }
               />
             </Field>
           </div>

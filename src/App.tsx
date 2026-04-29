@@ -16,11 +16,15 @@ import {
   UpdatesPage,
 } from "./pages";
 import type { Screen } from "./types";
+import type { ClientQuestionnaire } from "./modules/questionnaire";
 
 export default function App() {
   const [screen, setScreen] = useState<Screen>("start");
   const mock = mockAppData;
   const pageProps = { mock, navigate: setScreen };
+  const [clientQuestionnaire, setClientQuestionnaire] = useState<
+    ClientQuestionnaire | null
+  >(null);
 
   let body: ReactNode;
   switch (screen) {
@@ -31,10 +35,23 @@ export default function App() {
       body = <AboutNutritionistPage {...pageProps} />;
       break;
     case "questionnaire":
-      body = <QuestionnairePage {...pageProps} />;
+      body = (
+        <QuestionnairePage
+          {...pageProps}
+          initialQuestionnaire={clientQuestionnaire}
+          onQuestionnaireComplete={(questionnaire) =>
+            setClientQuestionnaire(questionnaire)
+          }
+        />
+      );
       break;
     case "building":
-      body = <BuildingProgramPage {...pageProps} />;
+      body = (
+        <BuildingProgramPage
+          {...pageProps}
+          clientQuestionnaire={clientQuestionnaire}
+        />
+      );
       break;
     case "dashboard":
       body = <DashboardPage {...pageProps} />;

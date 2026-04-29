@@ -39,6 +39,7 @@ export const questionnaireDefaults = {
     foodsNotEaten: "",
     sweetCraving: "иногда",
     eveningSnacks: "иногда",
+    snacksAndTiming: "",
     commonNutritionChallenges: "",
   },
   budgetSeasonAndAvailability: {
