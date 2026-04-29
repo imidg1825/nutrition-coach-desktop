@@ -7,6 +7,15 @@ import { buildPersonalProgram } from "../modules/programBuilder";
 import type { PageProps } from "./pageProps";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
+const DAILY_ACTUALS_STORAGE_KEY = "nutrition.dailyActuals";
+
+type ActualDeviation = "same" | "less" | "more";
+type ActualMeals = {
+  breakfast: string;
+  lunch: string;
+  snacks: string;
+  dinner: string;
+};
 
 type ProgramSessionSnapshot = {
   currentDay?: number;
@@ -81,6 +90,74 @@ function persistProgramSessionCurrentDay(day: number): void {
   }
 }
 
+function persistDailyActual(
+  dayNumber: number,
+  deviation: ActualDeviation,
+  notes: string,
+  fullText: string,
+): void {
+  try {
+    const raw = localStorage.getItem(DAILY_ACTUALS_STORAGE_KEY);
+    const parsedUnknown: unknown = raw ? JSON.parse(raw) : null;
+    const parsed: Record<string, unknown> =
+      parsedUnknown && typeof parsedUnknown === "object"
+        ? (parsedUnknown as Record<string, unknown>)
+        : {};
+
+    const trimmedNotes = notes.trim();
+    const estimated = estimateCaloriesFromText(fullText);
+    parsed[String(dayNumber)] = {
+      deviation,
+      notes: trimmedNotes,
+      caloriesDelta:
+        fullText.trim().length > 0 ? estimated : mapDeviationToCalories(deviation),
+      completedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(DAILY_ACTUALS_STORAGE_KEY, JSON.stringify(parsed));
+  } catch {
+    // no-op: keep UI responsive even if storage is unavailable
+  }
+}
+
+function mapDeviationToCalories(deviation: ActualDeviation): number {
+  switch (deviation) {
+    case "less":
+      return -200;
+    case "more":
+      return 300;
+    case "same":
+    default:
+      return 0;
+  }
+}
+
+function estimateCaloriesFromText(text: string): number {
+  const normalized = text.toLowerCase();
+  const rules: Array<{ keyword: string; calories: number }> = [
+    { keyword: "сахар", calories: 50 },
+    { keyword: "печенье", calories: 100 },
+    { keyword: "хлеб", calories: 100 },
+    { keyword: "батон", calories: 120 },
+    { keyword: "бутерброд", calories: 200 },
+    { keyword: "колбас", calories: 150 },
+    { keyword: "сосиск", calories: 150 },
+    { keyword: "макарон", calories: 250 },
+    { keyword: "рис", calories: 200 },
+    { keyword: "куриц", calories: 150 },
+    { keyword: "салат", calories: 50 },
+    { keyword: "суп", calories: 150 },
+    { keyword: "компот", calories: 100 },
+    { keyword: "ролл", calories: 300 },
+    { keyword: "пицц", calories: 300 },
+  ];
+
+  return rules.reduce(
+    (sum, rule) => (normalized.includes(rule.keyword) ? sum + rule.calories : sum),
+    0,
+  );
+}
+
 function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
   const q =
     seed && typeof seed === "object" && "questionnaire" in seed
@@ -127,6 +204,13 @@ export function DayPage({
   clientQuestionnaire,
 }: PageProps & { clientQuestionnaire: ClientQuestionnaire | null }) {
   const [dayCompleted, setDayCompleted] = useState(false);
+  const [actualDeviation, setActualDeviation] = useState<ActualDeviation | null>(null);
+  const [actualMeals, setActualMeals] = useState<ActualMeals>({
+    breakfast: "",
+    lunch: "",
+    snacks: "",
+    dinner: "",
+  });
   const initialSession = readProgramSessionSnapshot();
   const [sessionCurrentDay, setSessionCurrentDay] = useState(
     initialSession.currentDay ?? mock.user.program.currentDay,
@@ -154,6 +238,8 @@ export function DayPage({
             const nextDay = Math.max(1, sessionCurrentDay - 1);
             setSessionCurrentDay(nextDay);
             persistProgramSessionCurrentDay(nextDay);
+            setActualDeviation(null);
+            setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
           }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
         >
@@ -165,6 +251,8 @@ export function DayPage({
             const nextDay = Math.min(sessionTotalDays, sessionCurrentDay + 1);
             setSessionCurrentDay(nextDay);
             persistProgramSessionCurrentDay(nextDay);
+            setActualDeviation(null);
+            setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
           }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
         >
@@ -257,17 +345,131 @@ export function DayPage({
         {rec?.text}
       </p>
       {!dayCompleted ? (
-        <button
-          type="button"
-          onClick={() => {
-            setDayCompleted(true);
-            const next = completeDayInProgramSession();
-            setSessionCurrentDay(next.currentDay);
-          }}
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
-        >
-          Отметить день выполненным
-        </button>
+        <div className="space-y-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
+            <h2 className="mb-3 text-sm font-medium text-slate-800">
+              Как сегодня получилось по питанию?
+            </h2>
+            <div className="mb-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActualDeviation("same")}
+                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  actualDeviation === "same"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Примерно по плану
+              </button>
+              <button
+                type="button"
+                onClick={() => setActualDeviation("less")}
+                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  actualDeviation === "less"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Ел(а) меньше
+              </button>
+              <button
+                type="button"
+                onClick={() => setActualDeviation("more")}
+                className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+                  actualDeviation === "more"
+                    ? "border-accent bg-accent/10 text-accent"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                Ел(а) больше / плотнее
+              </button>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-sm text-slate-700">
+                Завтрак
+                <textarea
+                  value={actualMeals.breakfast}
+                  onChange={(e) =>
+                    setActualMeals((prev) => ({ ...prev, breakfast: e.target.value }))
+                  }
+                  rows={2}
+                  placeholder="например: яйцо, бутерброд, чай с сахаром"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
+                />
+              </label>
+              <label className="block text-sm text-slate-700">
+                Обед
+                <textarea
+                  value={actualMeals.lunch}
+                  onChange={(e) =>
+                    setActualMeals((prev) => ({ ...prev, lunch: e.target.value }))
+                  }
+                  rows={2}
+                  placeholder="например: суп, салат, хлеб, компот"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
+                />
+              </label>
+              <label className="block text-sm text-slate-700">
+                Перекусы
+                <textarea
+                  value={actualMeals.snacks}
+                  onChange={(e) =>
+                    setActualMeals((prev) => ({ ...prev, snacks: e.target.value }))
+                  }
+                  rows={2}
+                  placeholder="например: чай + печенье, кофе, фрукт"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
+                />
+              </label>
+              <label className="block text-sm text-slate-700">
+                Ужин
+                <textarea
+                  value={actualMeals.dinner}
+                  onChange={(e) =>
+                    setActualMeals((prev) => ({ ...prev, dinner: e.target.value }))
+                  }
+                  rows={2}
+                  placeholder="например: макароны с сосиской, хлеб"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
+                />
+              </label>
+            </div>
+          </section>
+          <button
+            type="button"
+            onClick={() => {
+              const fullText = [
+                actualMeals.breakfast,
+                actualMeals.lunch,
+                actualMeals.snacks,
+                actualMeals.dinner,
+              ]
+                .join(" ")
+                .toLowerCase();
+              const notes = [
+                `Завтрак: ${actualMeals.breakfast.trim() || "—"}`,
+                `Обед: ${actualMeals.lunch.trim() || "—"}`,
+                `Перекусы: ${actualMeals.snacks.trim() || "—"}`,
+                `Ужин: ${actualMeals.dinner.trim() || "—"}`,
+              ].join("\n");
+              persistDailyActual(
+                sessionCurrentDay,
+                actualDeviation ?? "same",
+                notes,
+                fullText,
+              );
+              setDayCompleted(true);
+              const next = completeDayInProgramSession();
+              setSessionCurrentDay(next.currentDay);
+              setActualDeviation(null);
+              setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
+            }}
+            className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
+          >
+            Отметить день выполненным
+          </button>
+        </div>
       ) : (
         <div className="space-y-4">
           <div
@@ -290,6 +492,8 @@ export function DayPage({
               setDayCompleted(false);
               const next = readProgramSessionSnapshot();
               setSessionCurrentDay(next.currentDay ?? sessionCurrentDay);
+              setActualDeviation(null);
+              setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
             }}
             className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
           >

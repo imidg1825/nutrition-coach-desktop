@@ -21,6 +21,12 @@ export type ProgramDay = {
   habit: string;
   task: string;
   supportMessage: string;
+  completed?: boolean;
+  actual?: {
+    notes?: string; // what user actually ate
+    deviation?: "less" | "more" | "same"; // less / more / about as planned
+    comment?: string; // short wellbeing note or comment
+  };
   alternatives: {
     cafeOrCanteen: string;
     takeAway: string;

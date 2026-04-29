@@ -1,6 +1,14 @@
 import type { PageProps } from "./pageProps";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
+const DAILY_ACTUALS_STORAGE_KEY = "nutrition.dailyActuals";
+
+type DailyActual = {
+  deviation: "same" | "less" | "more";
+  notes: string;
+  caloriesDelta: number;
+  completedAt: string;
+};
 
 function readProgramSessionDayInfo(): { currentDay?: number; totalDays?: number } {
   try {
@@ -24,16 +32,65 @@ function readProgramSessionDayInfo(): { currentDay?: number; totalDays?: number 
   }
 }
 
-export function ProgressPage({ mock }: PageProps) {
-  const { progress, behavior } = mock.user;
+function readDailyActuals(): Record<string, DailyActual> {
+  try {
+    const raw = localStorage.getItem(DAILY_ACTUALS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+
+    const result: Record<string, DailyActual> = {};
+    for (const [day, value] of Object.entries(parsed as Record<string, unknown>)) {
+      if (!value || typeof value !== "object") continue;
+      const entry = value as Partial<DailyActual>;
+      if (
+        (entry.deviation === "same" ||
+          entry.deviation === "less" ||
+          entry.deviation === "more") &&
+        typeof entry.notes === "string" &&
+        typeof entry.caloriesDelta === "number" &&
+        typeof entry.completedAt === "string"
+      ) {
+        result[day] = {
+          deviation: entry.deviation,
+          notes: entry.notes,
+          caloriesDelta: entry.caloriesDelta,
+          completedAt: entry.completedAt,
+        };
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+export function ProgressPage({ mock: _mock }: PageProps) {
   const session = readProgramSessionDayInfo();
   const totalDays = session.totalDays ?? 14;
-  const completed = session.currentDay
-    ? Math.max(0, session.currentDay - 1)
-    : progress.completedDays.length;
-  const skipped = progress.skippedDays.length;
+  const dailyActuals = readDailyActuals();
+  const actualEntries = Object.values(dailyActuals);
+  const completed = Object.keys(dailyActuals).length;
+  const skipped = 0;
   const hasSkips = skipped > 0;
   const progressPercent = Math.round((completed / totalDays) * 100);
+  const recordedDays = actualEntries.length;
+  const totalCaloriesDelta = actualEntries.reduce(
+    (sum, item) => sum + item.caloriesDelta,
+    0,
+  );
+  const avgCaloriesDelta = recordedDays
+    ? Math.round(totalCaloriesDelta / recordedDays)
+    : 0;
+  const sameDays = actualEntries.filter((item) => item.deviation === "same").length;
+  const lessDays = actualEntries.filter((item) => item.deviation === "less").length;
+  const moreDays = actualEntries.filter((item) => item.deviation === "more").length;
+  const nutritionSummary =
+    totalCaloriesDelta > 0
+      ? "За записанные дни есть небольшой перевес по факту. Это не критично — продолжайте по плану, без компенсаций."
+      : totalCaloriesDelta < 0
+        ? "Есть недобор по факту. Важно не оставаться голодным и не пропускать основные приёмы пищи."
+        : "В целом питание близко к плану.";
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
@@ -51,18 +108,37 @@ export function ProgressPage({ mock }: PageProps) {
           <dt className="text-slate-500">Пропущено дней</dt>
           <dd>{skipped}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-slate-500">Серия выполнений</dt>
-          <dd>{progress.currentStreak}</dd>
-        </div>
         <div className="flex justify-between border-t border-slate-100 pt-2">
-          <dt className="text-slate-500">Сводка поведения (мок)</dt>
-          <dd className="text-right text-xs text-slate-600">
-            выполнено: {behavior.completedCount}, пропусков:{" "}
-            {behavior.skippedCount}
-          </dd>
+          <dt className="text-slate-500">Серия выполнений</dt>
+          <dd>{completed}</dd>
         </div>
       </dl>
+      <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
+        <h2 className="text-sm font-semibold text-slate-900">Питание по факту</h2>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Записано дней</span>
+          <span>{recordedDays}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Условное отклонение</span>
+          <span>{totalCaloriesDelta}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Среднее условное отклонение</span>
+          <span>{avgCaloriesDelta}</span>
+        </div>
+        <div className="flex justify-between border-t border-slate-100 pt-2">
+          <span className="text-slate-500">Дни: по плану / меньше / больше</span>
+          <span>
+            {sameDays} / {lessDays} / {moreDays}
+          </span>
+        </div>
+        <p className="text-xs text-slate-500">
+          Это не точный подсчёт калорий, а ориентир по вашей отметке и описанию
+          дня.
+        </p>
+        <p className="rounded-md bg-slate-50 px-3 py-2 text-slate-700">{nutritionSummary}</p>
+      </section>
       {hasSkips ? (
         <p className="rounded-lg border border-amber-100 bg-amber-50/80 p-4 text-sm leading-relaxed text-amber-950">
           Пропуски случаются — главное, что вы снова в программе. Один шаг
