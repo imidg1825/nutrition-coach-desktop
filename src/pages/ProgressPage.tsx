@@ -1,10 +1,39 @@
 import type { PageProps } from "./pageProps";
 
+const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
+
+function readProgramSessionDayInfo(): { currentDay?: number; totalDays?: number } {
+  try {
+    const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return {};
+    const p = parsed as { currentDay?: unknown; totalDays?: unknown };
+    return {
+      currentDay:
+        typeof p.currentDay === "number" && p.currentDay > 0
+          ? Math.floor(p.currentDay)
+          : undefined,
+      totalDays:
+        typeof p.totalDays === "number" && p.totalDays > 0
+          ? Math.floor(p.totalDays)
+          : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 export function ProgressPage({ mock }: PageProps) {
   const { progress, behavior } = mock.user;
-  const completed = progress.completedDays.length;
+  const session = readProgramSessionDayInfo();
+  const totalDays = session.totalDays ?? 14;
+  const completed = session.currentDay
+    ? Math.max(0, session.currentDay - 1)
+    : progress.completedDays.length;
   const skipped = progress.skippedDays.length;
   const hasSkips = skipped > 0;
+  const progressPercent = Math.round((completed / totalDays) * 100);
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
@@ -12,7 +41,7 @@ export function ProgressPage({ mock }: PageProps) {
       <dl className="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
         <div className="flex justify-between">
           <dt className="text-slate-500">Процент программы</dt>
-          <dd className="font-semibold">{progress.progressPercent}%</dd>
+          <dd className="font-semibold">{progressPercent}%</dd>
         </div>
         <div className="flex justify-between">
           <dt className="text-slate-500">Выполнено дней</dt>

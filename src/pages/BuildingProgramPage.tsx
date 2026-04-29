@@ -149,7 +149,13 @@ export function BuildingProgramPage({
   mock,
   navigate,
   clientQuestionnaire,
-}: PageProps & { clientQuestionnaire: ClientQuestionnaire | null }) {
+  onProgramAssembled,
+  onNutritionPlanOpened,
+}: PageProps & {
+  clientQuestionnaire: ClientQuestionnaire | null;
+  onProgramAssembled: (questionnaire: ClientQuestionnaire) => void;
+  onNutritionPlanOpened: () => void;
+}) {
   const fallbackQ = useMemo(
     () => mergeQuestionnaireFromProfile(mock.user.profile),
     [mock.user.profile],
@@ -305,7 +311,10 @@ export function BuildingProgramPage({
         {!assembled ? (
           <button
             type="button"
-            onClick={() => setAssembled(true)}
+            onClick={() => {
+              setAssembled(true);
+              onProgramAssembled(q);
+            }}
             className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
           >
             Собрать программу
@@ -360,7 +369,10 @@ export function BuildingProgramPage({
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start">
             <button
               type="button"
-              onClick={() => navigate("nutritionPlan")}
+              onClick={() => {
+                onNutritionPlanOpened();
+                navigate("nutritionPlan");
+              }}
               className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
             >
               Открыть план питания

@@ -5,6 +5,8 @@ import {
 } from "../modules/questionnaire";
 import type { PageProps } from "./pageProps";
 
+// TODO: подключить buildPersonalProgram как единый источник дней программы.
+
 function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
   const q =
     seed && typeof seed === "object" && "questionnaire" in seed
@@ -64,27 +66,27 @@ function includesWord(s: string, word: string): boolean {
 function MenuMealCard({
   title,
   dish,
+  portion,
   howToCook,
-  replacement,
 }: {
   title: string;
   dish: string;
+  portion: string;
   howToCook: string;
-  replacement: string;
 }) {
   return (
     <div className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
-      <p className="text-sm font-semibold tracking-tight text-slate-900">
+      <p className="text-base font-semibold tracking-tight text-slate-900">
         {title}
       </p>
-      <p className="mt-2 text-sm text-slate-800">
+      <p className="mt-2 text-sm leading-relaxed text-slate-800">
         <span className="font-medium">Блюдо:</span> {dish}
       </p>
-      <p className="mt-1 text-sm text-slate-800">
-        <span className="font-medium">Как готовить:</span> {howToCook}
+      <p className="mt-1 text-sm leading-relaxed text-slate-800">
+        <span className="font-medium">Порция:</span> {portion}
       </p>
-      <p className="mt-1 text-sm text-slate-800">
-        <span className="font-medium">Замена:</span> {replacement}
+      <p className="mt-1 text-sm leading-relaxed text-slate-800">
+        <span className="font-medium">Как готовить:</span> {howToCook}
       </p>
     </div>
   );
@@ -132,6 +134,18 @@ export function NutritionPlanPage(
       .join(" ")
       .toLowerCase()
       .includes("килограмм");
+  const goalTextLower = [
+    q.goalAndDuration.primaryGoal,
+    q.goalAndDuration.desiredOutcome,
+  ]
+    .join(" ")
+    .toLowerCase();
+  const ambitiousWeightLossGoal =
+    weightLossGoal &&
+    (goalTextLower.includes("5 кг") ||
+      goalTextLower.includes("5кг") ||
+      goalTextLower.includes("5 килограмм") ||
+      goalTextLower.includes("минус 5"));
 
   const shouldAvoidSugar =
     weightLossGoal ||
@@ -166,62 +180,188 @@ export function NutritionPlanPage(
     : "";
 
   const portionGuidance = weightLossGoal
-    ? "Умеренные порции, небольшие перекусы, без сладких напитков и сахара."
+    ? "Ориентир для мягкого снижения веса: порции умеренные, сладкие напитки и сахар убираем, перекусы небольшие."
     : activityLevel === "низкий"
       ? "Умеренные порции, перекусы лёгкие."
       : activityLevel === "средний"
         ? "Умеренные порции без жёстких ограничений, акцент на регулярность и качество еды."
         : "Не урезать питание резко: оставить белок, овощи и сложные углеводы.";
 
-  const lunchHowToCookAddon = hasFryingOrFatRestriction
-    ? " без жарки и жирного."
+  const caloriesHint = weightLossGoal
+    ? "Это ориентир для мягкого снижения веса, без обещаний точного результата."
+    : "Это ориентир для сбалансированного ежедневного питания.";
+
+  const cookingRuleSuffix = hasFryingOrFatRestriction
+    ? " Готовить без зажарки и жирного мяса."
+    : " Базово использовать варку, тушение или запекание.";
+  const sugarRuleSuffix = shouldAvoidSugar
+    ? " Без сахара и сладких напитков."
     : "";
 
-  const dinnerHowToCookAddon = hasFryingOrFatRestriction
-    ? " без жарки и жирного."
-    : "";
+  type MealItem = { dish: string; portion: string; howToCook: string };
+  type DayPlan = {
+    day: number;
+    breakfast: MealItem;
+    lunch: MealItem;
+    dinner: MealItem;
+  };
 
-  const breakfastDish = "Овсянка на воде с яблоком";
-  const breakfastHowToCook = shouldAvoidSugar
-    ? "Сварить 5–7 минут, сахар не добавлять."
-    : "Сварить 5–7 минут.";
-  const breakfastReplacement = "Омлет с овощами или гречневая каша.";
+  const dayPlans: DayPlan[] = [
+    {
+      day: 1,
+      breakfast: {
+        dish: "Овсянка на воде с яблоком",
+        portion: "Каша 120–180 г + фрукт 80–120 г",
+        howToCook: `Сварить 5–7 минут.${sugarRuleSuffix}${cookingRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Гречка с курицей и овощами",
+        portion: "Гречка 120–180 г + курица 100–150 г + овощи 150–250 г",
+        howToCook: `Курицу отварить/запечь, овощи свежие или тушёные.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Рыба или птица с овощами",
+        portion: "Белок 100–150 г + овощи 150–250 г",
+        howToCook: `Тушить или запекать.${cookingRuleSuffix}`,
+      },
+    },
+    {
+      day: 2,
+      breakfast: {
+        dish: "Омлет с овощами",
+        portion: "Омлет из 2 яиц + овощи 150–200 г",
+        howToCook: `Готовить на антипригарной сковороде без жарки или запекать.${cookingRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Овощной суп + птица",
+        portion: "Суп 250–350 мл + птица 100–150 г",
+        howToCook: `Суп варить без жирной зажарки, птицу отварить/запечь.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Тушёная индейка с овощами",
+        portion: "Индейка 100–150 г + овощи 150–250 г",
+        howToCook: `Тушить с небольшим количеством масла или воды.${cookingRuleSuffix}`,
+      },
+    },
+    {
+      day: 3,
+      breakfast: {
+        dish: "Гречневая каша с фруктом",
+        portion: "Каша 120–180 г + фрукт 80–120 г",
+        howToCook: `Сварить до мягкости.${sugarRuleSuffix}${cookingRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Рис с рыбой и салатом",
+        portion: "Рис 120–180 г + рыба 100–150 г + салат 150–250 г",
+        howToCook: `Рыбу запечь или приготовить на пару, салат без тяжёлых соусов.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Курица с овощами",
+        portion: "Курица 100–150 г + овощи 150–250 г",
+        howToCook: `Курицу запечь/тушить, овощи тушить или подать свежими.${cookingRuleSuffix}`,
+      },
+    },
+    {
+      day: 4,
+      breakfast: {
+        dish: hasLactoseIntolerance
+          ? "Яйцо или каша с фруктом"
+          : "Творог с фруктом",
+        portion: hasLactoseIntolerance
+          ? "Яйцо 1–2 шт или каша 120–180 г + фрукт 80–120 г"
+          : "Творог 120–180 г + фрукт 80–120 г",
+        howToCook: hasLactoseIntolerance
+          ? `При лактозе выбрать яйцо или кашу вместо творога.${sugarRuleSuffix}`
+          : `Творог выбрать без сахара и лишних добавок.${sugarRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Лёгкий суп + белок",
+        portion: "Суп 250–350 мл + белок 100–150 г",
+        howToCook: `Суп без зажарки, белок отварить или запечь.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Рыба с овощами",
+        portion: "Рыба 100–150 г + овощи 150–250 г",
+        howToCook: `Запекать или тушить.${cookingRuleSuffix}`,
+      },
+    },
+    {
+      day: 5,
+      breakfast: {
+        dish: "Овсянка или яйцо",
+        portion: "Каша 120–180 г или 2 яйца + овощи/фрукт",
+        howToCook: `Готовить без сахара и сладких добавок при необходимости.${sugarRuleSuffix}${cookingRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Булгур с птицей",
+        portion: "Булгур 120–180 г + птица 100–150 г + овощи 150–250 г",
+        howToCook: `Птицу тушить или запекать, булгур отварить.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Овощное рагу с белком",
+        portion: "Рагу 200–300 г + белок 100–150 г",
+        howToCook: `Овощи тушить, белок добавить отварной/запечённый.${cookingRuleSuffix}`,
+      },
+    },
+    {
+      day: 6,
+      breakfast: {
+        dish: "Гречка или омлет",
+        portion: "Каша 120–180 г или омлет из 2 яиц + овощи",
+        howToCook: `Сварить кашу или запечь/приготовить омлет без жарки.${cookingRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Суп с курицей",
+        portion: "Суп 250–350 мл + курица 100–150 г",
+        howToCook: `Суп без жирной зажарки, курицу отварить.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Рыба или птица с овощами",
+        portion: "Белок 100–150 г + овощи 150–250 г",
+        howToCook: `Тушить или запекать.${cookingRuleSuffix}`,
+      },
+    },
+    {
+      day: 7,
+      breakfast: {
+        dish: "Каша с фруктом",
+        portion: "Каша 120–180 г + фрукт 80–120 г",
+        howToCook: `Сварить кашу, сахар не добавлять при необходимости.${sugarRuleSuffix}${cookingRuleSuffix}`,
+      },
+      lunch: {
+        dish: "Курица или рыба с гарниром",
+        portion: "Белок 100–150 г + гарнир 120–180 г + овощи 150–250 г",
+        howToCook: `Белок запечь/тушить, гарнир отварить.${cookingRuleSuffix}`,
+      },
+      dinner: {
+        dish: "Лёгкий ужин с овощами и белком",
+        portion: "Белок 100–130 г + овощи 150–250 г",
+        howToCook: `Готовить легко: тушение/запекание.${cookingRuleSuffix}`,
+      },
+    },
+  ];
 
-  const lunchDish = "Гречка с курицей и овощами";
-  const lunchHowToCook = `Курицу отварить или запечь, овощи добавить свежими или тушёными.${lunchHowToCookAddon}`;
-  const lunchReplacement = "Рис/булгур + рыба/птица + овощи.";
+  const snackVariants = shouldAvoidSugar
+    ? [
+        "Фрукт или чай без сахара",
+        "Яйцо и овощи",
+        "Овощная нарезка и несладкий напиток",
+        "Фрукт (небольшая порция)",
+      ]
+    : [
+        "Фрукт или чай",
+        "Яйцо и овощи",
+        "Овощная нарезка и несладкий напиток",
+        "Фрукт (небольшая порция)",
+      ];
+  const snackPortion = "Маленькая порция";
+  const snackHowToCookBase = weightLossGoal
+    ? `Выбрать небольшой перекус и не увеличивать общий объём еды.${sugarRuleSuffix}`
+    : `Выбрать небольшой перекус.${sugarRuleSuffix}`;
 
-  const dinnerDish = "Рыба или птица с тушёными овощами";
-  const dinnerHowToCook = `Тушить или запекать.${dinnerHowToCookAddon}`;
-  const dinnerReplacement = "Омлет с овощами или бобовые с овощами.";
-
-  const snackDish = hasLactoseIntolerance
-    ? shouldAvoidSugar
-      ? "Фрукт или чай без сахара"
-      : "Фрукт или чай"
-    : shouldAvoidSugar
-      ? "Фрукт, йогурт без сахара или чай без сахара"
-      : "Фрукт, йогурт или чай";
-  const snackHowToCook = weightLossGoal
-    ? "Выбрать небольшую порцию, без сладких напитков и сахара. Не увеличивать общий объём еды."
-    : shouldAvoidSugar
-      ? "Выбрать небольшую порцию, без сладких напитков и сахара."
-      : "Выбрать небольшую порцию.";
-  const snackReplacement = hasLactoseIntolerance
-    ? shouldAvoidSugar
-      ? "Овощи или несладкий напиток."
-      : "Овощи или напиток."
-    : shouldAvoidSugar
-      ? "Овощи, яйцо или несладкий напиток."
-      : "Овощи, яйцо или напиток.";
-
-  const secondSnackDish = shouldAvoidSugar
-    ? "Овощи, яйцо или чай без сахара"
-    : "Овощи, яйцо или чай";
-  const secondSnackHowToCook = shouldAvoidSugar
-    ? "Небольшая порция, без сахара."
-    : "Небольшая порция.";
-  const secondSnackReplacement = "Фрукт или овощная нарезка.";
+  const secondSnackDish = "Овощи, яйцо или чай";
+  const secondSnackPortion = "Маленькая порция";
+  const secondSnackHowToCook = `Лёгкий второй перекус без перегруза.${sugarRuleSuffix}`;
 
   const showFirstSnack = mealsPerDay > 3;
   const showSecondSnack = mealsPerDay > 4;
@@ -252,56 +392,91 @@ export function NutritionPlanPage(
 
       <section className="rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-sm">
         <h2 className="text-sm font-semibold tracking-tight text-slate-900">
-          Ориентир по порциям
+          Ориентир по калориям и порциям
         </h2>
         <p className="mt-1.5 text-sm leading-relaxed text-slate-800">
           {portionGuidance}
         </p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-700">
+          {caloriesHint}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">
+          Калории и порции указаны как ориентир. Для точной нормы лучше
+          согласовать питание с профильным врачом.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">
+          Порции: каша/гарнир 120-180 г, белок 100-150 г, овощи 150-250 г, суп
+          250-350 мл, перекус — маленькая порция.
+        </p>
+        {ambitiousWeightLossGoal ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-900">
+            Цель выглядит амбициозной для короткого срока. План даёт мягкий
+            ориентир для снижения веса без жёстких ограничений. Безопасный темп
+            лучше согласовать с профильным врачом.
+          </p>
+        ) : null}
       </section>
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold tracking-tight text-slate-900">
-          Меню на день
+          План питания на 7 дней
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <MenuMealCard
-            title="Завтрак"
-            dish={breakfastDish}
-            howToCook={breakfastHowToCook}
-            replacement={breakfastReplacement}
-          />
-          <MenuMealCard
-            title="Обед"
-            dish={lunchDish}
-            howToCook={lunchHowToCook}
-            replacement={lunchReplacement}
-          />
-          <MenuMealCard
-            title="Ужин"
-            dish={dinnerDish}
-            howToCook={dinnerHowToCook}
-            replacement={dinnerReplacement}
-          />
-          {showFirstSnack ? (
-            <MenuMealCard
-              title="Перекус"
-              dish={snackDish}
-              howToCook={
-                snacksAndTiming
-                  ? `Обычно: ${snacksAndTiming}. ${snackHowToCook}`
-                  : snackHowToCook
-              }
-              replacement={snackReplacement}
-            />
-          ) : null}
-          {showSecondSnack ? (
-            <MenuMealCard
-              title="Второй перекус"
-              dish={secondSnackDish}
-              howToCook={secondSnackHowToCook}
-              replacement={secondSnackReplacement}
-            />
-          ) : null}
+        <p className="text-sm text-slate-600">
+          Этот 7-дневный план можно повторять на 2 недели, адаптируя блюда под
+          доступные продукты и ограничения.
+        </p>
+
+        <div className="space-y-6">
+          {dayPlans.map((day, idx) => (
+            <section
+              key={day.day}
+              className="rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm"
+            >
+              <h3 className="text-lg font-semibold tracking-tight text-slate-900">
+                День {day.day}
+              </h3>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <MenuMealCard
+                  title="Завтрак"
+                  dish={day.breakfast.dish}
+                  portion={day.breakfast.portion}
+                  howToCook={day.breakfast.howToCook}
+                />
+                <MenuMealCard
+                  title="Обед"
+                  dish={day.lunch.dish}
+                  portion={day.lunch.portion}
+                  howToCook={day.lunch.howToCook}
+                />
+                <MenuMealCard
+                  title="Ужин"
+                  dish={day.dinner.dish}
+                  portion={day.dinner.portion}
+                  howToCook={day.dinner.howToCook}
+                />
+                {showFirstSnack ? (
+                  <MenuMealCard
+                    title="Перекус"
+                    dish={snacksAndTiming ? `Текущая привычка: ${snacksAndTiming}` : snackVariants[idx % snackVariants.length]}
+                    portion={snackPortion}
+                    howToCook={
+                      snacksAndTiming
+                        ? `Мягкая замена: ${snackVariants[idx % snackVariants.length]}. ${snackHowToCookBase}`
+                        : snackHowToCookBase
+                    }
+                  />
+                ) : null}
+                {showSecondSnack ? (
+                  <MenuMealCard
+                    title="Второй перекус"
+                    dish={secondSnackDish}
+                    portion={secondSnackPortion}
+                    howToCook={secondSnackHowToCook}
+                  />
+                ) : null}
+              </div>
+            </section>
+          ))}
         </div>
 
         <button

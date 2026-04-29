@@ -1,2 +1,8 @@
-/** Сборка программы по шаблонам — не реализовано в каркасе. */
-export {};
+export type {
+  PersonalProgram,
+  ProgramDay,
+  ProgramMeal,
+  ProgramMealType,
+  ProgramNutritionRules,
+} from "./types";
+export { buildPersonalProgram } from "./buildPersonalProgram";

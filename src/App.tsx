@@ -19,13 +19,122 @@ import {
 import type { Screen } from "./types";
 import type { ClientQuestionnaire } from "./modules/questionnaire";
 
+const CLIENT_QUESTIONNAIRE_STORAGE_KEY = "nutrition.clientQuestionnaire";
+const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
+const VALID_SCREENS: Screen[] = [
+  "start",
+  "about",
+  "questionnaire",
+  "building",
+  "nutritionPlan",
+  "dashboard",
+  "calendar",
+  "day",
+  "recommendations",
+  "progress",
+  "finish",
+  "updates",
+  "settings",
+];
+
+type ProgramSession = {
+  questionnaireCompleted: boolean;
+  programAssembled: boolean;
+  nutritionPlanOpened: boolean;
+  currentDay: number;
+  totalDays: number;
+  startedAt: string;
+  currentScreen: Screen;
+};
+
+function defaultProgramSession(): ProgramSession {
+  return {
+    questionnaireCompleted: false,
+    programAssembled: false,
+    nutritionPlanOpened: false,
+    currentDay: 1,
+    totalDays: 14,
+    startedAt: "",
+    currentScreen: "start",
+  };
+}
+
+function isValidScreen(value: unknown): value is Screen {
+  return typeof value === "string" && VALID_SCREENS.includes(value as Screen);
+}
+
+function loadProgramSessionFromStorage(): ProgramSession {
+  try {
+    const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
+    if (!raw) return defaultProgramSession();
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return defaultProgramSession();
+
+    const p = parsed as Partial<ProgramSession>;
+    return {
+      questionnaireCompleted: Boolean(p.questionnaireCompleted),
+      programAssembled: Boolean(p.programAssembled),
+      nutritionPlanOpened: Boolean(p.nutritionPlanOpened),
+      currentDay:
+        typeof p.currentDay === "number" && p.currentDay > 0
+          ? Math.floor(p.currentDay)
+          : 1,
+      totalDays:
+        typeof p.totalDays === "number" && p.totalDays > 0
+          ? Math.floor(p.totalDays)
+          : 14,
+      startedAt: typeof p.startedAt === "string" ? p.startedAt : "",
+      currentScreen: isValidScreen(p.currentScreen) ? p.currentScreen : "start",
+    };
+  } catch {
+    return defaultProgramSession();
+  }
+}
+
+function persistProgramSession(session: ProgramSession): void {
+  localStorage.setItem(PROGRAM_SESSION_STORAGE_KEY, JSON.stringify(session));
+}
+
+function loadClientQuestionnaireFromStorage(): ClientQuestionnaire | null {
+  try {
+    const raw = localStorage.getItem(CLIENT_QUESTIONNAIRE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed as ClientQuestionnaire;
+  } catch {
+    return null;
+  }
+}
+
 export default function App() {
-  const [screen, setScreen] = useState<Screen>("start");
+  const [programSession, setProgramSession] = useState<ProgramSession>(() =>
+    loadProgramSessionFromStorage(),
+  );
+  const [screen, setScreen] = useState<Screen>(() =>
+    isValidScreen(programSession.currentScreen)
+      ? programSession.currentScreen
+      : "start",
+  );
   const mock = mockAppData;
-  const pageProps = { mock, navigate: setScreen };
+  const navigate = (nextScreen: Screen) => {
+    setScreen(nextScreen);
+    setProgramSession((prev) => {
+      const next = { ...prev, currentScreen: nextScreen };
+      persistProgramSession(next);
+      return next;
+    });
+  };
+  const pageProps = { mock, navigate };
   const [clientQuestionnaire, setClientQuestionnaire] = useState<
     ClientQuestionnaire | null
-  >(null);
+  >(() => loadClientQuestionnaireFromStorage());
+
+  function clearClientQuestionnaire(): void {
+    setClientQuestionnaire(null);
+    localStorage.removeItem(CLIENT_QUESTIONNAIRE_STORAGE_KEY);
+  }
+  void clearClientQuestionnaire;
 
   let body: ReactNode;
   switch (screen) {
@@ -40,9 +149,22 @@ export default function App() {
         <QuestionnairePage
           {...pageProps}
           initialQuestionnaire={clientQuestionnaire}
-          onQuestionnaireComplete={(questionnaire) =>
-            setClientQuestionnaire(questionnaire)
-          }
+          onQuestionnaireComplete={(questionnaire) => {
+            setClientQuestionnaire(questionnaire);
+            localStorage.setItem(
+              CLIENT_QUESTIONNAIRE_STORAGE_KEY,
+              JSON.stringify(questionnaire),
+            );
+            setProgramSession((prev) => {
+              const next: ProgramSession = {
+                ...prev,
+                questionnaireCompleted: true,
+                totalDays: questionnaire.goalAndDuration.programDurationDays || 14,
+              };
+              persistProgramSession(next);
+              return next;
+            });
+          }}
         />
       );
       break;
@@ -51,6 +173,29 @@ export default function App() {
         <BuildingProgramPage
           {...pageProps}
           clientQuestionnaire={clientQuestionnaire}
+          onProgramAssembled={(questionnaire) => {
+            setProgramSession((prev) => {
+              const next: ProgramSession = {
+                ...prev,
+                programAssembled: true,
+                currentDay: 1,
+                totalDays: questionnaire.goalAndDuration.programDurationDays || 14,
+                startedAt: new Date().toISOString().slice(0, 10),
+              };
+              persistProgramSession(next);
+              return next;
+            });
+          }}
+          onNutritionPlanOpened={() => {
+            setProgramSession((prev) => {
+              const next: ProgramSession = {
+                ...prev,
+                nutritionPlanOpened: true,
+              };
+              persistProgramSession(next);
+              return next;
+            });
+          }}
         />
       );
       break;
@@ -69,7 +214,12 @@ export default function App() {
       body = <CalendarPage {...pageProps} />;
       break;
     case "day":
-      body = <DayPage {...pageProps} />;
+      body = (
+        <DayPage
+          {...pageProps}
+          clientQuestionnaire={clientQuestionnaire}
+        />
+      );
       break;
     case "recommendations":
       body = <RecommendationsPage {...pageProps} />;
@@ -93,7 +243,7 @@ export default function App() {
   return (
     <AppLayout
       screen={screen}
-      onNavigate={setScreen}
+      onNavigate={navigate}
       isOnline={mock.isOnline}
       materialsVersion={mock.content.contentVersion.version}
     >
