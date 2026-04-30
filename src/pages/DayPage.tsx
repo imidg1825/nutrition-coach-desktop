@@ -5,6 +5,7 @@ import {
 } from "../modules/questionnaire";
 import { buildPersonalProgram } from "../modules/programBuilder";
 import { getDayRecoveryMessage } from "../modules/support/dayRecovery";
+import { buildLiveSupportMessage } from "../modules/support/liveSupport";
 import { buildDaySummaryMessage } from "../modules/support/daySummary";
 import type { PageProps } from "./pageProps";
 
@@ -18,6 +19,7 @@ type ActualMeals = {
   snacks: string;
   dinner: string;
 };
+type ActualMealField = keyof ActualMeals;
 
 type ProgramSessionSnapshot = {
   currentDay?: number;
@@ -118,7 +120,7 @@ function persistDailyActual(
     const estimated = estimateCaloriesFromText(fullText);
     const caloriesDelta =
       fullText.trim().length > 0 ? estimated : mapDeviationToCalories(deviation);
-    const summaryMessage = buildDaySummaryMessage(deviation, caloriesDelta);
+    const summaryMessage = buildDaySummaryMessage(deviation, caloriesDelta, trimmedNotes);
     parsed[String(dayNumber)] = {
       deviation,
       notes: trimmedNotes,
@@ -134,7 +136,11 @@ function persistDailyActual(
     const fallbackCaloriesDelta = mapDeviationToCalories(deviation);
     return {
       caloriesDelta: fallbackCaloriesDelta,
-      summaryMessage: buildDaySummaryMessage(deviation, fallbackCaloriesDelta),
+        summaryMessage: buildDaySummaryMessage(
+          deviation,
+          fallbackCaloriesDelta,
+          notes,
+        ),
     };
   }
 }
@@ -258,6 +264,7 @@ export function DayPage({
   const [dayCompleted, setDayCompleted] = useState(false);
   const [actualDeviation, setActualDeviation] = useState<ActualDeviation | null>(null);
   const [daySummary, setDaySummary] = useState<string | null>(null);
+  const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [actualMeals, setActualMeals] = useState<ActualMeals>({
     breakfast: "",
     lunch: "",
@@ -300,6 +307,17 @@ export function DayPage({
   const weightLossGoal = personalProgram.nutritionRules.weightLossGoal;
   const rec = mock.content.recommendations.items[0];
 
+  const updateMealField = (field: ActualMealField, value: string) => {
+    setActualMeals((prev) => {
+      const next = { ...prev, [field]: value };
+      const notes = [next.breakfast, next.lunch, next.snacks, next.dinner]
+        .join(" ")
+        .trim();
+      setLiveMessage(buildLiveSupportMessage(notes));
+      return next;
+    });
+  };
+
   useEffect(() => {
     const entry = readDailyActualEntry(currentDay);
     if (!entry) {
@@ -310,7 +328,7 @@ export function DayPage({
     setDayCompleted(true);
     setDaySummary(
       entry.summaryMessage ??
-        buildDaySummaryMessage(entry.deviation, entry.caloriesDelta),
+        buildDaySummaryMessage(entry.deviation, entry.caloriesDelta, entry.notes),
     );
   }, [currentDay]);
 
@@ -329,6 +347,7 @@ export function DayPage({
             persistProgramSessionCurrentDay(nextDay);
             setActualDeviation(null);
             setDaySummary(null);
+            setLiveMessage(null);
             setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
           }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
@@ -344,6 +363,7 @@ export function DayPage({
             persistProgramSessionCurrentDay(nextDay);
             setActualDeviation(null);
             setDaySummary(null);
+            setLiveMessage(null);
             setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
           }}
           className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
@@ -487,9 +507,7 @@ export function DayPage({
                 Завтрак
                 <textarea
                   value={actualMeals.breakfast}
-                  onChange={(e) =>
-                    setActualMeals((prev) => ({ ...prev, breakfast: e.target.value }))
-                  }
+                  onChange={(e) => updateMealField("breakfast", e.target.value)}
                   rows={2}
                   placeholder="например: яйцо, бутерброд, чай с сахаром"
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
@@ -499,9 +517,7 @@ export function DayPage({
                 Обед
                 <textarea
                   value={actualMeals.lunch}
-                  onChange={(e) =>
-                    setActualMeals((prev) => ({ ...prev, lunch: e.target.value }))
-                  }
+                  onChange={(e) => updateMealField("lunch", e.target.value)}
                   rows={2}
                   placeholder="например: суп, салат, хлеб, компот"
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
@@ -511,9 +527,7 @@ export function DayPage({
                 Перекусы
                 <textarea
                   value={actualMeals.snacks}
-                  onChange={(e) =>
-                    setActualMeals((prev) => ({ ...prev, snacks: e.target.value }))
-                  }
+                  onChange={(e) => updateMealField("snacks", e.target.value)}
                   rows={2}
                   placeholder="например: чай + печенье, кофе, фрукт"
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
@@ -523,14 +537,17 @@ export function DayPage({
                 Ужин
                 <textarea
                   value={actualMeals.dinner}
-                  onChange={(e) =>
-                    setActualMeals((prev) => ({ ...prev, dinner: e.target.value }))
-                  }
+                  onChange={(e) => updateMealField("dinner", e.target.value)}
                   rows={2}
                   placeholder="например: макароны с сосиской, хлеб"
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
                 />
               </label>
+              {liveMessage ? (
+                <p className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-600">
+                  {liveMessage}
+                </p>
+              ) : null}
             </div>
           </section>
           <button
@@ -562,6 +579,7 @@ export function DayPage({
               const next = completeDayInProgramSession();
               setSessionCurrentDay(Math.min(Math.max(next.currentDay, 1), totalDays));
               setActualDeviation(null);
+              setLiveMessage(null);
               setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
             }}
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
@@ -599,6 +617,7 @@ export function DayPage({
               setSessionCurrentDay(Math.min(Math.max(nextCurrentDay, 1), totalDays));
               setActualDeviation(null);
               setDaySummary(null);
+              setLiveMessage(null);
               setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
             }}
             className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
