@@ -4,8 +4,8 @@ import {
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
 import { buildPersonalProgram } from "../modules/programBuilder";
-import { getDayRecoveryMessage } from "../modules/support/dayRecovery";
 import { buildLiveSupportMessage } from "../modules/support/liveSupport";
+import { consumeReturnAfterBreakMessage } from "../modules/support/returnAfterBreak";
 import {
   buildDaySummaryMessage,
   buildTomorrowSuggestion,
@@ -24,11 +24,6 @@ type ActualMeals = {
 };
 type ActualMealField = keyof ActualMeals;
 
-type ProgramSessionSnapshot = {
-  currentDay?: number;
-  totalDays?: number;
-};
-
 type DailyActualEntry = {
   deviation: ActualDeviation;
   notes: string;
@@ -37,58 +32,6 @@ type DailyActualEntry = {
   summaryMessage?: string;
 };
 
-function readProgramSessionSnapshot(): ProgramSessionSnapshot {
-  try {
-    const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
-    if (!raw) return {};
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return {};
-    const p = parsed as ProgramSessionSnapshot;
-    return {
-      currentDay:
-        typeof p.currentDay === "number" && p.currentDay > 0
-          ? Math.floor(p.currentDay)
-          : undefined,
-      totalDays:
-        typeof p.totalDays === "number" && p.totalDays > 0
-          ? Math.floor(p.totalDays)
-          : undefined,
-    };
-  } catch {
-    return {};
-  }
-}
-
-function completeDayInProgramSession(): { currentDay: number; totalDays: number } {
-  const fallback = { currentDay: 1, totalDays: 14 };
-  try {
-    const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
-    const parsedUnknown: unknown = raw ? JSON.parse(raw) : null;
-    const parsed: Record<string, unknown> =
-      parsedUnknown && typeof parsedUnknown === "object"
-        ? (parsedUnknown as Record<string, unknown>)
-        : {};
-    const currentDay =
-      typeof parsed.currentDay === "number" && parsed.currentDay > 0
-        ? Math.floor(parsed.currentDay)
-        : fallback.currentDay;
-    const totalDays =
-      typeof parsed.totalDays === "number" && parsed.totalDays > 0
-        ? Math.floor(parsed.totalDays)
-        : fallback.totalDays;
-    const nextDay = Math.min(currentDay + 1, totalDays);
-    const nextSession = {
-      ...parsed,
-      currentDay: nextDay,
-      totalDays,
-      currentScreen: "day",
-    };
-    localStorage.setItem(PROGRAM_SESSION_STORAGE_KEY, JSON.stringify(nextSession));
-    return { currentDay: nextDay, totalDays };
-  } catch {
-    return fallback;
-  }
-}
 
 function persistProgramSessionCurrentDay(day: number): void {
   try {
@@ -110,7 +53,15 @@ function persistDailyActual(
   deviation: ActualDeviation,
   notes: string,
   fullText: string,
+  isCompletionConfirmed: boolean,
 ): { caloriesDelta: number; summaryMessage: string } {
+  if (!isCompletionConfirmed) {
+    const fallbackCaloriesDelta = mapDeviationToCalories(deviation);
+    return {
+      caloriesDelta: fallbackCaloriesDelta,
+      summaryMessage: buildDaySummaryMessage(deviation, fallbackCaloriesDelta, notes),
+    };
+  }
   try {
     const raw = localStorage.getItem(DAILY_ACTUALS_STORAGE_KEY);
     const parsedUnknown: unknown = raw ? JSON.parse(raw) : null;
@@ -178,6 +129,29 @@ function readDailyActualEntry(dayNumber: number): DailyActualEntry | null {
     return null;
   } catch {
     return null;
+  }
+}
+
+function countCompletedDaysFromDailyActuals(): number {
+  try {
+    const raw = localStorage.getItem(DAILY_ACTUALS_STORAGE_KEY);
+    if (!raw) return 0;
+    const parsedUnknown: unknown = JSON.parse(raw);
+    if (!parsedUnknown || typeof parsedUnknown !== "object") return 0;
+    return Object.values(parsedUnknown as Record<string, unknown>).filter((entryUnknown) => {
+      if (!entryUnknown || typeof entryUnknown !== "object") return false;
+      const entry = entryUnknown as Partial<DailyActualEntry>;
+      return (
+        (entry.deviation === "same" ||
+          entry.deviation === "less" ||
+          entry.deviation === "more") &&
+        typeof entry.notes === "string" &&
+        typeof entry.caloriesDelta === "number" &&
+        typeof entry.completedAt === "string"
+      );
+    }).length;
+  } catch {
+    return 0;
   }
 }
 
@@ -275,10 +249,6 @@ export function DayPage({
     snacks: "",
     dinner: "",
   });
-  const initialSession = readProgramSessionSnapshot();
-  const [sessionCurrentDay, setSessionCurrentDay] = useState(
-    initialSession.currentDay ?? mock.user.program.currentDay,
-  );
   const q = clientQuestionnaire ?? mergeQuestionnaireFromProfile(mock.user.profile);
   const programConfigRaw = localStorage.getItem("nutrition.programConfig");
   let duration: 7 | 14 | 30 = 14;
@@ -299,28 +269,31 @@ export function DayPage({
     [q, duration],
   );
   const totalDays = personalProgram.totalDays || personalProgram.days.length;
-  const currentDay = Math.min(Math.max(sessionCurrentDay, 1), totalDays);
-  const isFirstDay = currentDay <= 1;
-  const isLastDay = currentDay >= totalDays;
+  const completedDays = countCompletedDaysFromDailyActuals();
+  const currentDay = Math.min(completedDays + 1, totalDays);
   const currentProgramDay =
     personalProgram.days[currentDay - 1] ??
     personalProgram.days[personalProgram.days.length - 1];
-  const wasPreviousDayMissed =
-    currentDay > 1 && !readDailyActualEntry(currentDay - 1);
+  const returnAfterBreakMessage = useMemo(
+    () => consumeReturnAfterBreakMessage(),
+    [],
+  );
   const hasMedicalData = Boolean(personalProgram.nutritionRules.medicalNote);
   const weightLossGoal = personalProgram.nutritionRules.weightLossGoal;
   const rec = mock.content.recommendations.items[0];
 
   const updateMealField = (field: ActualMealField, value: string) => {
-    setActualMeals((prev) => {
-      const next = { ...prev, [field]: value };
-      const notes = [next.breakfast, next.lunch, next.snacks, next.dinner]
-        .join(" ")
-        .trim();
-      setLiveMessage(buildLiveSupportMessage(notes));
-      return next;
-    });
+    setActualMeals((prev) => ({ ...prev, [field]: value }));
   };
+
+  useEffect(() => {
+    setLiveMessage(buildLiveSupportMessage(actualMeals));
+  }, [
+    actualMeals.breakfast,
+    actualMeals.lunch,
+    actualMeals.snacks,
+    actualMeals.dinner,
+  ]);
 
   useEffect(() => {
     const entry = readDailyActualEntry(currentDay);
@@ -342,48 +315,19 @@ export function DayPage({
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
+      <button
+        type="button"
+        onClick={() => navigate("dashboard")}
+        className="text-sm text-slate-600 hover:text-slate-900"
+      >
+        ← Назад
+      </button>
       <h1 className="text-xl font-semibold">
         День {currentDay} из {totalDays}
       </h1>
-      <div className="flex gap-2">
-        <button
-          type="button"
-          disabled={isFirstDay}
-          onClick={() => {
-            const nextDay = Math.max(1, currentDay - 1);
-            setSessionCurrentDay(nextDay);
-            persistProgramSessionCurrentDay(nextDay);
-            setActualDeviation(null);
-            setDaySummary(null);
-            setTomorrowSuggestion(null);
-            setLiveMessage(null);
-            setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
-          }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-        >
-          Предыдущий день
-        </button>
-        <button
-          type="button"
-          disabled={isLastDay}
-          onClick={() => {
-            const nextDay = Math.min(totalDays, currentDay + 1);
-            setSessionCurrentDay(nextDay);
-            persistProgramSessionCurrentDay(nextDay);
-            setActualDeviation(null);
-            setDaySummary(null);
-            setTomorrowSuggestion(null);
-            setLiveMessage(null);
-            setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
-          }}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
-        >
-          Следующий день
-        </button>
-      </div>
-      {wasPreviousDayMissed ? (
+      {returnAfterBreakMessage ? (
         <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-950">
-          {getDayRecoveryMessage()}
+          {returnAfterBreakMessage}
         </div>
       ) : null}
       <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
@@ -586,14 +530,14 @@ export function DayPage({
                 savedDeviation,
                 notes,
                 fullText,
+                true,
               );
               setDaySummary(savedResult.summaryMessage);
               setTomorrowSuggestion(
                 buildTomorrowSuggestion(savedDeviation, savedResult.caloriesDelta, notes),
               );
               setDayCompleted(true);
-              const next = completeDayInProgramSession();
-              setSessionCurrentDay(Math.min(Math.max(next.currentDay, 1), totalDays));
+              persistProgramSessionCurrentDay(Math.min(currentDay + 1, totalDays));
               setActualDeviation(null);
               setLiveMessage(null);
               setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
@@ -606,9 +550,10 @@ export function DayPage({
       ) : (
         <div className="space-y-4">
           {daySummary ? (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
-              {daySummary}
-            </p>
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
+              <p className="mb-1 font-medium text-slate-900">Итог дня</p>
+              <p>{daySummary}</p>
+            </div>
           ) : null}
           {tomorrowSuggestion ? (
             <p className="text-sm text-slate-700">
@@ -634,9 +579,6 @@ export function DayPage({
             type="button"
             onClick={() => {
               setDayCompleted(false);
-              const next = readProgramSessionSnapshot();
-              const nextCurrentDay = next.currentDay ?? currentDay;
-              setSessionCurrentDay(Math.min(Math.max(nextCurrentDay, 1), totalDays));
               setActualDeviation(null);
               setDaySummary(null);
               setTomorrowSuggestion(null);
@@ -645,7 +587,7 @@ export function DayPage({
             }}
             className="rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-accent-hover"
           >
-            {currentDay <= 2 ? "Перейти ко дню 2" : "Перейти к следующему дню"}
+            {currentDay <= 1 ? "Перейти ко дню 2" : "Продолжить с текущего дня"}
           </button>
         </div>
       )}

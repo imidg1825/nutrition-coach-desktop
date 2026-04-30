@@ -4,6 +4,8 @@ import {
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
 import { buildPersonalProgram } from "../modules/programBuilder";
+import { countCompletedDaysFromDailyActuals } from "../modules/support/completedDays";
+import { consumeReturnAfterBreakMessage } from "../modules/support/returnAfterBreak";
 import type { PageProps } from "./pageProps";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
@@ -102,29 +104,6 @@ function countCompletionStreakFromStart(): number {
     streak += 1;
   }
   return streak;
-}
-
-function countCompletedDaysFromDailyActuals(): number {
-  try {
-    const raw = localStorage.getItem(DAILY_ACTUALS_STORAGE_KEY);
-    if (!raw) return 0;
-    const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return 0;
-    return Object.values(parsed as Record<string, unknown>).filter((entryUnknown) => {
-      if (!entryUnknown || typeof entryUnknown !== "object") return false;
-      const entry = entryUnknown as Partial<DailyActualEntry>;
-      return (
-        (entry.deviation === "same" ||
-          entry.deviation === "less" ||
-          entry.deviation === "more") &&
-        typeof entry.notes === "string" &&
-        typeof entry.caloriesDelta === "number" &&
-        typeof entry.completedAt === "string"
-      );
-    }).length;
-  } catch {
-    return 0;
-  }
 }
 
 function persistProgramSessionCurrentDay(day: number): void {
@@ -227,7 +206,6 @@ export function DashboardPage({
   const yesterdayDay = currentDay - 1;
   const yesterdayEntry = readDailyActualEntry(yesterdayDay);
   const hasYesterdayEntry = Boolean(yesterdayEntry);
-  const wasYesterdayMissed = currentDay > 1 && !hasYesterdayEntry;
   const completed = countCompletedDaysFromDailyActuals();
   const nextActionDay = Math.min(completed + 1, totalDays);
   const isNextActionDayCompleted = Boolean(readDailyActualEntry(nextActionDay));
@@ -235,6 +213,7 @@ export function DashboardPage({
   const todayProgramDay =
     personalProgram.days[nextActionDay - 1] ??
     personalProgram.days[personalProgram.days.length - 1];
+  const returnAfterBreakMessage = useMemo(() => consumeReturnAfterBreakMessage(), []);
 
   const ctaLabel = isNextActionDayCompleted
     ? `Посмотреть день ${nextActionDay}`
@@ -250,6 +229,11 @@ export function DashboardPage({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <h1 className="text-xl font-semibold">Главный экран наставника</h1>
+      {returnAfterBreakMessage ? (
+        <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-950">
+          {returnAfterBreakMessage}
+        </div>
+      ) : null}
       <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">
         <div className="mb-1 text-xs font-medium text-emerald-700">
           Сегодня
@@ -260,12 +244,6 @@ export function DashboardPage({
           })}
         </div>
       </div>
-      {wasYesterdayMissed ? (
-        <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm text-amber-900">
-          Похоже, вчера не получилось зайти. Это нормально. Просто продолжаем с
-          сегодняшнего дня — без попыток догнать.
-        </div>
-      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <h2 className="text-xs font-medium uppercase tracking-wide text-slate-500">

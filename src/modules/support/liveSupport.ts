@@ -1,14 +1,22 @@
-import { buildDaySummaryMessage } from "./daySummary";
+import {
+  getDetectedScenarios,
+  getLiveCombinedDayMessage,
+  getLiveScenarioMessage,
+  type LiveDayMeals,
+} from "./behaviorAnalysis";
 
-const STABLE_DAY_MESSAGE =
-  "Сегодня получилось довольно стабильно. Такие спокойные дни и создают основу результата.";
+export function buildLiveSupportMessage(notes: string | LiveDayMeals): string | null {
+  if (typeof notes !== "string") {
+    const combinedMessage = getLiveCombinedDayMessage(notes);
+    if (combinedMessage) return combinedMessage;
+    const detected = getDetectedScenarios(notes);
+    const scenario = detected.length > 0 ? detected[0] : null;
+    if (!scenario) return null;
+    return getLiveScenarioMessage(scenario);
+  }
 
-export function buildLiveSupportMessage(notes: string): string | null {
-  const normalizedNotes = notes.trim();
-  if (normalizedNotes.length <= 20) return null;
-
-  const message = buildDaySummaryMessage("same", 0, normalizedNotes);
-  if (message === STABLE_DAY_MESSAGE) return null;
-
-  return message;
+  const detected = getDetectedScenarios(notes);
+  const scenario = detected.length > 0 ? detected[0] : null;
+  if (!scenario) return null;
+  return getLiveScenarioMessage(scenario);
 }
