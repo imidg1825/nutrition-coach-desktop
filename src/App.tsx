@@ -120,7 +120,12 @@ export default function App() {
   const navigate = (nextScreen: Screen) => {
     setScreen(nextScreen);
     setProgramSession((prev) => {
-      const next = { ...prev, currentScreen: nextScreen };
+      const latest = loadProgramSessionFromStorage();
+      const next = {
+        ...prev,
+        ...latest,
+        currentScreen: nextScreen,
+      };
       persistProgramSession(next);
       return next;
     });
@@ -208,7 +213,9 @@ export default function App() {
       );
       break;
     case "dashboard":
-      body = <DashboardPage {...pageProps} />;
+      body = (
+        <DashboardPage {...pageProps} clientQuestionnaire={clientQuestionnaire} />
+      );
       break;
     case "calendar":
       body = <CalendarPage {...pageProps} />;

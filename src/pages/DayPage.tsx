@@ -6,7 +6,10 @@ import {
 import { buildPersonalProgram } from "../modules/programBuilder";
 import { getDayRecoveryMessage } from "../modules/support/dayRecovery";
 import { buildLiveSupportMessage } from "../modules/support/liveSupport";
-import { buildDaySummaryMessage } from "../modules/support/daySummary";
+import {
+  buildDaySummaryMessage,
+  buildTomorrowSuggestion,
+} from "../modules/support/daySummary";
 import type { PageProps } from "./pageProps";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
@@ -264,6 +267,7 @@ export function DayPage({
   const [dayCompleted, setDayCompleted] = useState(false);
   const [actualDeviation, setActualDeviation] = useState<ActualDeviation | null>(null);
   const [daySummary, setDaySummary] = useState<string | null>(null);
+  const [tomorrowSuggestion, setTomorrowSuggestion] = useState<string | null>(null);
   const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [actualMeals, setActualMeals] = useState<ActualMeals>({
     breakfast: "",
@@ -323,12 +327,16 @@ export function DayPage({
     if (!entry) {
       setDayCompleted(false);
       setDaySummary(null);
+      setTomorrowSuggestion(null);
       return;
     }
     setDayCompleted(true);
     setDaySummary(
       entry.summaryMessage ??
         buildDaySummaryMessage(entry.deviation, entry.caloriesDelta, entry.notes),
+    );
+    setTomorrowSuggestion(
+      buildTomorrowSuggestion(entry.deviation, entry.caloriesDelta, entry.notes),
     );
   }, [currentDay]);
 
@@ -347,6 +355,7 @@ export function DayPage({
             persistProgramSessionCurrentDay(nextDay);
             setActualDeviation(null);
             setDaySummary(null);
+            setTomorrowSuggestion(null);
             setLiveMessage(null);
             setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
           }}
@@ -363,6 +372,7 @@ export function DayPage({
             persistProgramSessionCurrentDay(nextDay);
             setActualDeviation(null);
             setDaySummary(null);
+            setTomorrowSuggestion(null);
             setLiveMessage(null);
             setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
           }}
@@ -544,9 +554,12 @@ export function DayPage({
                 />
               </label>
               {liveMessage ? (
-                <p className="rounded-md bg-slate-50 px-3 py-2 text-sm leading-relaxed text-slate-600">
-                  {liveMessage}
-                </p>
+                <div className="rounded-md border border-emerald-100 bg-emerald-50/70 px-3 py-3 text-sm leading-relaxed text-emerald-900">
+                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
+                    Небольшое наблюдение
+                  </div>
+                  <div>{liveMessage}</div>
+                </div>
               ) : null}
             </div>
           </section>
@@ -575,6 +588,9 @@ export function DayPage({
                 fullText,
               );
               setDaySummary(savedResult.summaryMessage);
+              setTomorrowSuggestion(
+                buildTomorrowSuggestion(savedDeviation, savedResult.caloriesDelta, notes),
+              );
               setDayCompleted(true);
               const next = completeDayInProgramSession();
               setSessionCurrentDay(Math.min(Math.max(next.currentDay, 1), totalDays));
@@ -589,6 +605,17 @@ export function DayPage({
         </div>
       ) : (
         <div className="space-y-4">
+          {daySummary ? (
+            <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
+              {daySummary}
+            </p>
+          ) : null}
+          {tomorrowSuggestion ? (
+            <p className="text-sm text-slate-700">
+              <span className="font-medium text-slate-900">Завтра можно так:</span>{" "}
+              {tomorrowSuggestion}
+            </p>
+          ) : null}
           <div
             role="status"
             className="rounded-xl border border-green-200/90 bg-green-50/90 px-4 py-3 text-sm leading-relaxed text-green-950"
@@ -596,11 +623,6 @@ export function DayPage({
             День отмечен выполненным. Отличный старт — можно вернуться на
             главный экран или продолжить завтра.
           </div>
-          {daySummary ? (
-            <p className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-700">
-              {daySummary}
-            </p>
-          ) : null}
           <button
             type="button"
             onClick={() => navigate("dashboard")}
@@ -617,6 +639,7 @@ export function DayPage({
               setSessionCurrentDay(Math.min(Math.max(nextCurrentDay, 1), totalDays));
               setActualDeviation(null);
               setDaySummary(null);
+              setTomorrowSuggestion(null);
               setLiveMessage(null);
               setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
             }}
