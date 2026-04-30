@@ -252,10 +252,33 @@ const DAY_ALTERNATIVE_TEMPLATES: DayAlternativeTemplate[] = [
   },
 ];
 
+type BuildPersonalProgramOptions = {
+  duration?: 7 | 14 | 30;
+};
+
+function normalizeDuration(value: unknown): 7 | 14 | 30 | undefined {
+  return value === 7 || value === 14 || value === 30 ? value : undefined;
+}
+
 export function buildPersonalProgram(
   questionnaire: ClientQuestionnaire,
+  options?: BuildPersonalProgramOptions,
 ): PersonalProgram {
-  const totalDays = questionnaire.goalAndDuration.programDurationDays || 14;
+  const questionnaireDuration = normalizeDuration(
+    (
+      questionnaire as ClientQuestionnaire & {
+        duration?: unknown;
+      }
+    ).duration,
+  );
+  const questionnaireProgramDuration = normalizeDuration(
+    questionnaire.goalAndDuration.programDurationDays,
+  );
+  const totalDays =
+    normalizeDuration(options?.duration) ??
+    questionnaireDuration ??
+    questionnaireProgramDuration ??
+    14;
   const startedAt = new Date().toISOString().slice(0, 10);
 
   const cooking = questionnaire.cookingHabitsAndMethods;

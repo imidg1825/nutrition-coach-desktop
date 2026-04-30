@@ -97,7 +97,25 @@ export function NutritionPlanPage(
     if (clientQuestionnaire) return clientQuestionnaire;
     return mergeQuestionnaireFromProfile(mock.user.profile);
   }, [clientQuestionnaire, mock.user.profile]);
-  const personalProgram = useMemo(() => buildPersonalProgram(q), [q]);
+  const programConfigRaw = localStorage.getItem("nutrition.programConfig");
+  let duration: 7 | 14 | 30 = 14;
+  try {
+    const parsed = programConfigRaw ? JSON.parse(programConfigRaw) : null;
+    if (
+      parsed?.duration === 7 ||
+      parsed?.duration === 14 ||
+      parsed?.duration === 30
+    ) {
+      duration = parsed.duration;
+    }
+  } catch (_e) {
+    // fallback 14
+  }
+  const personalProgram = useMemo(
+    () => buildPersonalProgram(q, { duration }),
+    [q, duration],
+  );
+  const totalDays = personalProgram.totalDays;
 
   const weightLossGoal = [
     q.goalAndDuration.primaryGoal,
@@ -224,11 +242,10 @@ export function NutritionPlanPage(
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold tracking-tight text-slate-900">
-          План питания на 14 дней
+          {`Ваш план питания на ${totalDays} дней`}
         </h2>
         <p className="text-sm text-slate-600">
-          План рассчитан на 14 дней. Блюда можно адаптировать под доступные
-          продукты и указанные ограничения.
+          {`Этот план рассчитан на ${totalDays} дней — с простыми блюдами, заменами и мягкими подсказками на каждый день.`}
         </p>
 
         <div className="space-y-6">
