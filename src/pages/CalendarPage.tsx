@@ -45,7 +45,7 @@ export function CalendarPage({ mock }: PageProps) {
     <div className="mx-auto max-w-3xl space-y-4">
       <h1 className="text-xl font-semibold">Календарь программы</h1>
       <p className="text-sm text-slate-500">
-        Визуальный прогресс и статусы дней (мок).
+        Визуальный прогресс и статусы дней.
       </p>
       <div className="mb-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
         <div
