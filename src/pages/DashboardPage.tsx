@@ -271,7 +271,7 @@ export function DashboardPage({
   const streakDays = streak;
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h1 className="text-xl font-semibold">Главный экран наставника</h1>
+      <h1 className="text-xl font-semibold">Главный экран</h1>
       {returnAfterBreakMessage ? (
         <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-950">
           {returnAfterBreakMessage}

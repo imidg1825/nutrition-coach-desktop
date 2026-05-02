@@ -8,7 +8,7 @@ export function Header({ isOnline, materialsVersion }: HeaderProps) {
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-surface-card px-4 shadow-sm">
       <div className="flex items-baseline gap-2">
         <span className="text-lg font-semibold text-slate-900">
-          Наставник питания
+          Твой личный нутрициолог
         </span>
         <span className="text-xs text-slate-500">MVP · каркас</span>
       </div>

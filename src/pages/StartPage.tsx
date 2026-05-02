@@ -25,8 +25,11 @@ export function StartPage({ mock, navigate }: PageProps) {
           />
           <div className="space-y-3">
             <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-              Олеся Богураева
+              Твой личный нутрициолог
             </h1>
+            <p className="text-xl font-semibold tracking-tight text-slate-900">
+              Олеся Богураева
+            </p>
             <p className="text-base font-medium text-slate-700">
               Дипломированный фармацевт и нутрициолог с 10-летним опытом
             </p>
