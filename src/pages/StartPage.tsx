@@ -143,6 +143,17 @@ export function StartPage({ mock, navigate }: PageProps) {
           </ul>
         </div>
       </section>
+      <p className="mt-6 text-center text-xs text-slate-400">
+        Разработчик: Иван Мазницын ·{" "}
+        <a
+          href="https://t.me/Ivan_Maznitsin"
+          target="_blank"
+          rel="noreferrer"
+          className="underline hover:text-slate-600"
+        >
+          Telegram
+        </a>
+      </p>
     </div>
   );
 }

@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { PageProps } from "./pageProps";
 
 export function SettingsPage({ mock, navigate }: PageProps) {
-  const { settings } = mock.user;
   const v = mock.content.contentVersion;
   const [devMessage, setDevMessage] = useState<string | null>(null);
   return (
@@ -62,10 +61,6 @@ export function SettingsPage({ mock, navigate }: PageProps) {
         </p>
       ) : null}
       <dl className="space-y-2 rounded-lg border border-slate-200 bg-white p-4 text-sm">
-        <div>
-          <dt className="text-slate-500">Путь к локальным данным</dt>
-          <dd className="mt-1 font-mono text-xs break-all">{settings.localDataPath}</dd>
-        </div>
         <div className="flex justify-between">
           <dt className="text-slate-500">Версия приложения</dt>
           <dd className="font-mono">{mock.appVersion}</dd>
@@ -75,6 +70,37 @@ export function SettingsPage({ mock, navigate }: PageProps) {
           <dd className="font-mono">{v.version}</dd>
         </div>
       </dl>
+      <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm">
+        <h2 className="font-semibold text-slate-900">Разработчик</h2>
+        <p className="mt-2 text-slate-700">
+          Приложение разработал Иван Мазницын.
+        </p>
+        <p className="mt-3 text-slate-600">Контакты:</p>
+        <ul className="mt-1 list-inside list-disc space-y-1 text-slate-700">
+          <li>
+            Telegram:{" "}
+            <a
+              href="https://t.me/Ivan_Maznitsin"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              @Ivan_Maznitsin
+            </a>
+          </li>
+          <li>
+            GitHub:{" "}
+            <a
+              href="https://github.com/imidg1825"
+              target="_blank"
+              rel="noreferrer"
+              className="underline"
+            >
+              https://github.com/imidg1825
+            </a>
+          </li>
+        </ul>
+      </div>
     </div>
   );
 }
