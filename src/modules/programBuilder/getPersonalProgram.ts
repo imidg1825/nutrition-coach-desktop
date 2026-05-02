@@ -1,7 +1,12 @@
 import type { ClientQuestionnaire } from "../questionnaire";
 import { adaptProgramWithAI } from "./adaptProgramWithAI";
 import { buildPersonalProgram } from "./buildPersonalProgram";
-import { loadPersonalProgram, savePersonalProgram } from "./programStorage";
+import { explainProgramWithAI } from "./explainProgramWithAI";
+import {
+  loadPersonalProgram,
+  savePersonalProgram,
+  savePersonalProgramExplanation,
+} from "./programStorage";
 import type { PersonalProgram } from "./types";
 
 /** Совпадает с опциями `buildPersonalProgram` (duration 7 | 14 | 30). */
@@ -67,6 +72,14 @@ export async function getPersonalProgram(
       );
     }
     savePersonalProgram(adapted);
+    const explanation = await explainProgramWithAI(
+      adapted,
+      questionnaire,
+      apiKey,
+    );
+    if (explanation) {
+      savePersonalProgramExplanation(explanation);
+    }
     return adapted;
   } catch {
     if (import.meta.env.DEV) {
@@ -75,6 +88,14 @@ export async function getPersonalProgram(
       );
     }
     savePersonalProgram(baseProgram);
+    const explanation = await explainProgramWithAI(
+      baseProgram,
+      questionnaire,
+      apiKey,
+    );
+    if (explanation) {
+      savePersonalProgramExplanation(explanation);
+    }
     return baseProgram;
   }
 }

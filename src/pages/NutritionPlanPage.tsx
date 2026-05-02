@@ -7,6 +7,7 @@ import {
   getPersonalProgram,
   type PersonalProgram,
 } from "../modules/programBuilder";
+import { loadPersonalProgramExplanation } from "../modules/programBuilder/programStorage";
 import type { PageProps } from "./pageProps";
 
 function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
@@ -121,6 +122,9 @@ export function NutritionPlanPage(
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
     null,
   );
+  const [programExplanation, setProgramExplanation] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -135,6 +139,10 @@ export function NutritionPlanPage(
       mounted = false;
     };
   }, [q, duration]);
+
+  useEffect(() => {
+    setProgramExplanation(loadPersonalProgramExplanation());
+  }, [personalProgram]);
 
   if (personalProgram === null) {
     return (
@@ -268,6 +276,13 @@ export function NutritionPlanPage(
           </p>
         ) : null}
       </section>
+
+      {programExplanation ? (
+        <section className="rounded-xl border border-violet-200 bg-violet-50/70 px-4 py-4 text-sm leading-relaxed text-violet-950">
+          <p className="font-semibold">Олеся объясняет ваш план</p>
+          <p className="mt-2">{programExplanation}</p>
+        </section>
+      ) : null}
 
       <section className="space-y-3">
         <h2 className="text-base font-semibold tracking-tight text-slate-900">
