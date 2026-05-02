@@ -44,6 +44,10 @@ function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
           ...(q as any)?.cookingHabitsAndMethods,
         }
       : undefined,
+    healthAndAnalyses: {
+      ...questionnaireDefaults.healthAndAnalyses,
+      ...(q as any)?.healthAndAnalyses,
+    },
   };
 }
 

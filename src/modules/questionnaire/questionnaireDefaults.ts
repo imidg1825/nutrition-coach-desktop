@@ -79,4 +79,10 @@ export const questionnaireDefaults = {
     easyToReplace: "",
     cookingMethodsToAvoid: "",
   },
+  healthAndAnalyses: {
+    healthNotes: "",
+    labNotes: "",
+    medicationsNotes: "",
+    medicalDisclaimerAccepted: false,
+  },
 } satisfies ClientQuestionnaire;

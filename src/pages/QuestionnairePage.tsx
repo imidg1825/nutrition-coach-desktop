@@ -19,7 +19,7 @@ import {
 } from "../modules/questionnaire";
 import type { PageProps } from "./pageProps";
 
-const STEP_COUNT = 8;
+const STEP_COUNT = 9;
 
 const STEP_TITLES = [
   "Базовые данные",
@@ -30,6 +30,7 @@ const STEP_TITLES = [
   "Бюджет, сезонность и доступность",
   "Привычки, сложности и мягкое сопровождение",
   "Пищевые привычки и способы приготовления",
+  "Здоровье и анализы",
 ] as const;
 
 const MEDICAL_WARNING =
@@ -70,6 +71,10 @@ function deepMergeQuestionnaire(
     cookingHabitsAndMethods: {
       ...questionnaireDefaults.cookingHabitsAndMethods,
       ...q.cookingHabitsAndMethods,
+    },
+    healthAndAnalyses: {
+      ...questionnaireDefaults.healthAndAnalyses,
+      ...q.healthAndAnalyses,
     },
   };
 }
@@ -175,20 +180,47 @@ export function QuestionnairePage({
   onQuestionnaireComplete: (questionnaire: ClientQuestionnaire) => void;
 }) {
   const initial = useMemo(
-    () => initialQuestionnaire ?? deepMergeQuestionnaire(mock.user.profile),
+    () =>
+      initialQuestionnaire
+        ? deepMergeQuestionnaire({ questionnaire: initialQuestionnaire })
+        : deepMergeQuestionnaire(mock.user.profile),
     [initialQuestionnaire, mock.user.profile],
   );
   const [form, setForm] = useState<ClientQuestionnaire>(initial);
   const [step, setStep] = useState(1);
   const [questionnaireFinished, setQuestionnaireFinished] = useState(false);
+  const [disclaimerRequiredHint, setDisclaimerRequiredHint] = useState(false);
 
   const progressPct = (step / STEP_COUNT) * 100;
 
-  const goNext = () => setStep((s) => Math.min(STEP_COUNT, s + 1));
-  const goBack = () => setStep((s) => Math.max(1, s - 1));
+  const healthBlockHasContent = useMemo(() => {
+    const h = form.healthAndAnalyses;
+    return (
+      h.healthNotes.trim().length > 0 ||
+      h.labNotes.trim().length > 0 ||
+      h.medicationsNotes.trim().length > 0
+    );
+  }, [form.healthAndAnalyses]);
+
+  const canCompleteQuestionnaire =
+    !healthBlockHasContent || form.healthAndAnalyses.medicalDisclaimerAccepted;
+
+  const goNext = () => {
+    setStep((s) => Math.min(STEP_COUNT, s + 1));
+    setDisclaimerRequiredHint(false);
+  };
+  const goBack = () => {
+    setStep((s) => Math.max(1, s - 1));
+    setDisclaimerRequiredHint(false);
+  };
 
   const handleRightAction = () => {
     if (step === STEP_COUNT) {
+      if (!canCompleteQuestionnaire) {
+        setDisclaimerRequiredHint(true);
+        return;
+      }
+      setDisclaimerRequiredHint(false);
       onQuestionnaireComplete(form);
       setQuestionnaireFinished(true);
       return;
@@ -1293,6 +1325,106 @@ export function QuestionnairePage({
                 }
               />
             </Field>
+          </div>
+        ) : null}
+
+        {step === 9 ? (
+          <div className="space-y-5">
+            <p className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm leading-relaxed text-slate-700">
+              Шаг по желанию: можно оставить поля пустыми. Заметки сохраняются в
+              анкете, чтобы позже мягче учитывать контекст; сейчас питание по
+              ним не подбирается. Это не медицинский сервис и не замена врачу.
+            </p>
+            <Field label="Есть ли диагнозы, особенности здоровья или ограничения?">
+              <textarea
+                rows={3}
+                className={`${inputClass} resize-y`}
+                value={form.healthAndAnalyses.healthNotes}
+                onChange={(e) => {
+                  setDisclaimerRequiredHint(false);
+                  setForm((f) => ({
+                    ...f,
+                    healthAndAnalyses: {
+                      ...f.healthAndAnalyses,
+                      healthNotes: e.target.value,
+                    },
+                  }));
+                }}
+                placeholder="Например: гастрит, проблемы с ЖКТ, аллергия на молочные продукты, беременность, высокое давление, РПП в прошлом"
+              />
+            </Field>
+            <Field label="Есть ли свежие анализы или показатели, которые важно учитывать?">
+              <textarea
+                rows={3}
+                className={`${inputClass} resize-y`}
+                value={form.healthAndAnalyses.labNotes}
+                onChange={(e) => {
+                  setDisclaimerRequiredHint(false);
+                  setForm((f) => ({
+                    ...f,
+                    healthAndAnalyses: {
+                      ...f.healthAndAnalyses,
+                      labNotes: e.target.value,
+                    },
+                  }));
+                }}
+                placeholder="Например: низкий ферритин, витамин D ниже нормы, повышенный сахар, ТТГ, холестерин, гемоглобин"
+              />
+            </Field>
+            <Field label="Принимаете ли препараты, БАДы или витамины?">
+              <textarea
+                rows={3}
+                className={`${inputClass} resize-y`}
+                value={form.healthAndAnalyses.medicationsNotes}
+                onChange={(e) => {
+                  setDisclaimerRequiredHint(false);
+                  setForm((f) => ({
+                    ...f,
+                    healthAndAnalyses: {
+                      ...f.healthAndAnalyses,
+                      medicationsNotes: e.target.value,
+                    },
+                  }));
+                }}
+                placeholder="Например: магний, витамин D, железо, омега-3, препараты для щитовидной железы, лекарства от давления"
+              />
+            </Field>
+            <label className="flex cursor-pointer gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-accent focus:ring-accent"
+                checked={form.healthAndAnalyses.medicalDisclaimerAccepted}
+                onChange={(e) => {
+                  setDisclaimerRequiredHint(false);
+                  setForm((f) => ({
+                    ...f,
+                    healthAndAnalyses: {
+                      ...f.healthAndAnalyses,
+                      medicalDisclaimerAccepted: e.target.checked,
+                    },
+                  }));
+                }}
+              />
+              <span>
+                Я понимаю, что приложение не заменяет врача, а рекомендации по
+                препаратам и анализам лучше согласовывать со специалистом.
+              </span>
+            </label>
+            {healthBlockHasContent ? (
+              <p className="text-xs leading-relaxed text-slate-500">
+                Если вы что-то указали в полях выше, отметьте согласие с
+                формулировкой — иначе мы не сохраним эти сведения.
+              </p>
+            ) : null}
+            {disclaimerRequiredHint && healthBlockHasContent ? (
+              <p
+                className="text-sm font-medium text-amber-800"
+                role="alert"
+              >
+                Чтобы сохранить сведения о здоровье, поставьте галочку в поле
+                согласия выше.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </section>

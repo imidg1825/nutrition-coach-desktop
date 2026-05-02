@@ -1,8 +1,6 @@
 /**
  * Полная анкета клиента (раздел 31 PROJECT_SPEC.md).
- * Восемь шагов: базовые данные → цель и срок → медицинские особенности → режим дня и работа →
- * питание и продукты → бюджет и доступность → привычки, сложности и мягкое сопровождение →
- * пищевые привычки и способы приготовления.
+ * Восемь основных шагов + необязательный блок «Здоровье и анализы».
  */
 
 /** Как обращаться к пользователю в текстах поддержки. */
@@ -143,6 +141,18 @@ export type CookingTimeAvailable =
 
 export type SaltUsage = "low" | "moderate" | "high";
 
+/**
+ * Необязательный блок «Здоровье и анализы»: текстовые заметки для будущего учёта при формировании ориентиров по питанию.
+ * Приложение не делает медицинских выводов и не подбирает питание по анализам на этом этапе.
+ */
+export type QuestionnaireHealthAndAnalyses = {
+  healthNotes: string;
+  labNotes: string;
+  medicationsNotes: string;
+  /** Согласие с дисклеймером; обязательно, если заполнено хотя бы одно из полей выше (см. UI). */
+  medicalDisclaimerAccepted: boolean;
+};
+
 /** Шаг 8. Пищевые привычки и способы приготовления. */
 export type QuestionnaireCookingHabitsAndMethods = {
   usualCookingMethods: string;
@@ -158,7 +168,7 @@ export type QuestionnaireCookingHabitsAndMethods = {
 };
 
 /**
- * Полная анкета по 8 шагам спецификации.
+ * Полная анкета: 8 основных шагов + необязательный блок «Здоровье и анализы».
  * Используется как единая модель данных; плоские поля профиля в сидах могут дублировать часть значений для обратной совместимости с каркасом UI.
  */
 export type ClientQuestionnaire = {
@@ -170,4 +180,5 @@ export type ClientQuestionnaire = {
   budgetSeasonAndAvailability: QuestionnaireBudgetSeasonAndAvailability;
   habitsDifficultiesAndSupport: QuestionnaireHabitsDifficultiesAndSupport;
   cookingHabitsAndMethods?: QuestionnaireCookingHabitsAndMethods;
+  healthAndAnalyses: QuestionnaireHealthAndAnalyses;
 };

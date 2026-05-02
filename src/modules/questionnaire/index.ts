@@ -16,6 +16,7 @@ export type {
   QuestionnaireFoodAndProducts,
   QuestionnaireGoalAndDuration,
   QuestionnaireHabitsDifficultiesAndSupport,
+  QuestionnaireHealthAndAnalyses,
   QuestionnaireMedicalParticularities,
   SeasonChoice,
   SaltUsage,

@@ -159,6 +159,10 @@ function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
           ...q.cookingHabitsAndMethods,
         }
       : undefined,
+    healthAndAnalyses: {
+      ...questionnaireDefaults.healthAndAnalyses,
+      ...q?.healthAndAnalyses,
+    },
   };
 }
 

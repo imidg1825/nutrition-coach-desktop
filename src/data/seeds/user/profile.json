@@ -86,6 +86,12 @@
       "spicySaucesAndSpicesUsage": "sometimes",
       "easyToReplace": "Сладкие напитки на воду и чай без сахара",
       "cookingMethodsToAvoid": "Долгая жарка во фритюре"
+    },
+    "healthAndAnalyses": {
+      "healthNotes": "",
+      "labNotes": "",
+      "medicationsNotes": "",
+      "medicalDisclaimerAccepted": false
     }
   }
 }
