@@ -18,7 +18,10 @@ import {
   UpdatesPage,
 } from "./pages";
 import type { Screen } from "./types";
-import type { ClientQuestionnaire } from "./modules/questionnaire";
+import {
+  questionnaireDefaults,
+  type ClientQuestionnaire,
+} from "./modules/questionnaire";
 
 const CLIENT_QUESTIONNAIRE_STORAGE_KEY = "nutrition.clientQuestionnaire";
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
@@ -109,6 +112,47 @@ function loadClientQuestionnaireFromStorage(): ClientQuestionnaire | null {
   }
 }
 
+function normalizeClientQuestionnaire(
+  raw: ClientQuestionnaire | null,
+): ClientQuestionnaire | null {
+  if (raw === null) return null;
+  return {
+    basics: { ...questionnaireDefaults.basics, ...raw.basics },
+    goalAndDuration: {
+      ...questionnaireDefaults.goalAndDuration,
+      ...raw.goalAndDuration,
+    },
+    medicalParticularities: {
+      ...questionnaireDefaults.medicalParticularities,
+      ...raw.medicalParticularities,
+    },
+    dayScheduleAndWork: {
+      ...questionnaireDefaults.dayScheduleAndWork,
+      ...raw.dayScheduleAndWork,
+    },
+    foodAndProducts: {
+      ...questionnaireDefaults.foodAndProducts,
+      ...raw.foodAndProducts,
+    },
+    budgetSeasonAndAvailability: {
+      ...questionnaireDefaults.budgetSeasonAndAvailability,
+      ...raw.budgetSeasonAndAvailability,
+    },
+    habitsDifficultiesAndSupport: {
+      ...questionnaireDefaults.habitsDifficultiesAndSupport,
+      ...raw.habitsDifficultiesAndSupport,
+    },
+    cookingHabitsAndMethods: {
+      ...questionnaireDefaults.cookingHabitsAndMethods,
+      ...raw.cookingHabitsAndMethods,
+    },
+    healthAndAnalyses: {
+      ...questionnaireDefaults.healthAndAnalyses,
+      ...raw.healthAndAnalyses,
+    },
+  };
+}
+
 export default function App() {
   const [programSession, setProgramSession] = useState<ProgramSession>(() =>
     loadProgramSessionFromStorage(),
@@ -135,7 +179,9 @@ export default function App() {
   const pageProps = { mock, navigate };
   const [clientQuestionnaire, setClientQuestionnaire] = useState<
     ClientQuestionnaire | null
-  >(() => loadClientQuestionnaireFromStorage());
+  >(() =>
+    normalizeClientQuestionnaire(loadClientQuestionnaireFromStorage()),
+  );
 
   function clearClientQuestionnaire(): void {
     setClientQuestionnaire(null);
