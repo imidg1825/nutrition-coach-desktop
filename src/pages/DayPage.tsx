@@ -14,7 +14,6 @@ import {
   getDetectedScenarios,
   getRecoveryActivation,
 } from "../modules/support/behaviorAnalysis";
-import { buildLiveSupportMessage } from "../modules/support/liveSupport";
 import { applyRecoveryToProgramDay } from "../modules/support/recoveryAdjustments";
 import {
   activateOrRefreshRecovery,
@@ -30,6 +29,55 @@ import type { PageProps } from "./pageProps";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
 const DAILY_ACTUALS_STORAGE_KEY = "nutrition.dailyActuals";
+
+const OLESYA_DAY_TIPS = [
+  "Сегодня не нужно идеально — важно просто продолжать",
+  "Если день сбился — просто вернитесь к следующему приёму пищи",
+  "Стакан воды и нормальный обед уже делают день лучше",
+  "Не ругайте себя — система строится шаг за шагом",
+  "Регулярность важнее идеального меню",
+  "Маленький шаг сегодня — это уже прогресс",
+  "Усталость — не повод сдаваться, а сигнал отдохнуть и продолжить",
+  "Выберите один простой приём пищи и сделайте его спокойно",
+  "Один день не определяет всю историю — у вас есть завтра",
+  "План — это ориентир, а не кандалы: можно мягко подстроиться",
+  "Поощряйте себя за попытку, даже если всё не получилось",
+  "Тело слышит заботу: еда без спешки уже помогает",
+  "Если хочется сорваться — сделайте паузу и выпейте воды",
+  "Вы уже здесь — это значит, что вы не сдались",
+  "Спокойный вечер лучше идеального утра на нервах",
+];
+
+function softReminderFromHour(hour: number): string {
+  if (hour < 12) {
+    return "Начните день спокойно. Можно выпить воду и не спешить с идеальностью";
+  }
+  if (hour < 18) {
+    return "Если ещё не было нормального приёма пищи — лучше поесть спокойно сейчас";
+  }
+  return "Вечером не нужно догонять день едой. Достаточно лёгкого ужина";
+}
+
+function getLiveSupportMessage(
+  isBinge: boolean,
+  isSkip: boolean,
+  isFatigue: boolean,
+  isSweet: boolean,
+): string | null {
+  if (isBinge) {
+    return "Похоже, день пошёл не по плану. Это не повод начинать сначала или наказывать себя. Достаточно спокойно вернуться к следующему приёму пищи.";
+  }
+  if (isSkip) {
+    return "Похоже, сегодня не получилось нормально поесть. Такое часто бывает, когда день плотный или много дел. Сейчас важно не пропускать дальше — можно спокойно сделать следующий приём пищи без перегрузки.";
+  }
+  if (isFatigue) {
+    return "Похоже, сегодня много усталости. В такие дни важно не требовать от себя идеального режима — достаточно простого спокойного питания и отдыха.";
+  }
+  if (isSweet) {
+    return "Похоже, сегодня тянет на сладкое. Такое часто бывает при усталости или нерегулярном питании. Можно не ругать себя и спокойно продолжить.";
+  }
+  return null;
+}
 
 type ActualDeviation = "same" | "less" | "more";
 type ActualMeals = {
@@ -279,7 +327,6 @@ export function DayPage({
   const [tomorrowSuggestion, setTomorrowSuggestion] = useState<string | null>(null);
   const [dayContext, setDayContext] = useState("");
   const [assistantResponse, setAssistantResponse] = useState<string | null>(null);
-  const [liveMessage, setLiveMessage] = useState<string | null>(null);
   const [actualMeals, setActualMeals] = useState<ActualMeals>({
     breakfast: "",
     lunch: "",
@@ -311,6 +358,10 @@ export function DayPage({
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
     null,
   );
+  const [olesyaTip] = useState(() => {
+    const tips = OLESYA_DAY_TIPS;
+    return tips[Math.floor(Math.random() * tips.length)] ?? "";
+  });
 
   useEffect(() => {
     let mounted = true;
@@ -336,18 +387,6 @@ export function DayPage({
     () => consumeReturnAfterBreakMessage(),
     [],
   );
-
-  useEffect(() => {
-    setLiveMessage(
-      buildLiveSupportMessage({ ...actualMeals, dayContext }),
-    );
-  }, [
-    actualMeals.breakfast,
-    actualMeals.lunch,
-    actualMeals.snacks,
-    actualMeals.dinner,
-    dayContext,
-  ]);
 
   useEffect(() => {
     const entry = readDailyActualEntry(displayDayNumber);
@@ -413,6 +452,53 @@ export function DayPage({
     setActualMeals((prev) => ({ ...prev, [field]: value }));
   };
 
+  const softReminder = softReminderFromHour(new Date().getHours());
+
+  const mealFieldsLower = [
+    actualMeals.breakfast,
+    actualMeals.lunch,
+    actualMeals.snacks,
+    actualMeals.dinner,
+  ]
+    .join(" ")
+    .toLowerCase();
+  const liveSupportBingeKeywords = ["срыв", "переел"] as const;
+  const liveSupportSkipKeywords = [
+    "не ел",
+    "не ела",
+    "не успел",
+    "забыл поесть",
+    "не было времени",
+  ] as const;
+  const liveSupportFatigueKeywords = [
+    "устал",
+    "устала",
+    "нет сил",
+    "тяжелый день",
+    "тяжёлый день",
+    "вымоталась",
+    "вымотался",
+  ] as const;
+  const liveSupportSweetKeywords = ["слад", "печень", "шокол"] as const;
+  const isLiveSupportBingeScenario = liveSupportBingeKeywords.some((w) =>
+    mealFieldsLower.includes(w),
+  );
+  const isLiveSupportSkipScenario = liveSupportSkipKeywords.some((w) =>
+    mealFieldsLower.includes(w),
+  );
+  const isLiveSupportFatigueScenario = liveSupportFatigueKeywords.some((w) =>
+    mealFieldsLower.includes(w),
+  );
+  const isLiveSupportSweetScenario = liveSupportSweetKeywords.some((w) =>
+    mealFieldsLower.includes(w),
+  );
+  const liveSupportMessage = getLiveSupportMessage(
+    isLiveSupportBingeScenario,
+    isLiveSupportSkipScenario,
+    isLiveSupportFatigueScenario,
+    isLiveSupportSweetScenario,
+  );
+
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <button
@@ -430,24 +516,35 @@ export function DayPage({
           {returnAfterBreakMessage}
         </div>
       ) : null}
-      <section className="space-y-2 rounded-lg border border-slate-200 bg-white p-4">
-        <p>
-          <span className="text-slate-500">Настрой дня:</span>{" "}
-          {currentProgramDay.mood}
+      <section className="rounded-lg border border-slate-200 bg-white p-4">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-sm leading-snug">
+          <dt className="font-medium text-slate-600">Настрой дня:</dt>
+          <dd className="min-w-0 text-slate-800">{currentProgramDay.mood}</dd>
+          <dt className="font-medium text-slate-600">Фокус дня:</dt>
+          <dd className="min-w-0 text-slate-800">{displayDay.focus}</dd>
+          <dt className="font-medium text-slate-600">Привычка дня:</dt>
+          <dd className="min-w-0 text-slate-800">{currentProgramDay.habit}</dd>
+          <dt className="font-medium text-slate-600">Задание дня:</dt>
+          <dd className="min-w-0 text-slate-800">{displayDay.task}</dd>
+          <dt className="font-medium text-slate-600">Поддержка дня:</dt>
+          <dd className="min-w-0 text-slate-800">{displayDay.supportMessage}</dd>
+        </dl>
+      </section>
+      <section className="rounded-lg border border-violet-200/80 bg-violet-100/60 px-5 py-4">
+        <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight text-violet-950">
+          <span aria-hidden="true">💬</span>
+          Подсказка от Олеси
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-slate-800">
+          {olesyaTip}
         </p>
-        <p>
-          <span className="text-slate-500">Фокус дня:</span> {displayDay.focus}
-        </p>
-        <p>
-          <span className="text-slate-500">Привычка дня:</span>{" "}
-          {currentProgramDay.habit}
-        </p>
-        <p>
-          <span className="text-slate-500">Задание дня:</span> {displayDay.task}
-        </p>
-        <p>
-          <span className="text-slate-500">Поддержка дня:</span>{" "}
-          {displayDay.supportMessage}
+      </section>
+      <section className="rounded-lg border border-slate-200 bg-slate-50 px-5 py-4">
+        <h2 className="text-sm font-semibold tracking-tight text-slate-800">
+          Мягкое напоминание от Олеси
+        </h2>
+        <p className="mt-2 text-sm leading-relaxed text-slate-700">
+          {softReminder}
         </p>
       </section>
       <section className="rounded-lg border border-slate-200 bg-white p-4">
@@ -610,32 +707,65 @@ export function DayPage({
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
                 />
               </label>
-              {liveMessage ? (
-                <div className="rounded-md border border-emerald-100 bg-emerald-50/70 px-3 py-3 text-sm leading-relaxed text-emerald-900">
-                  <div className="mb-1 text-xs font-medium uppercase tracking-wide text-emerald-700">
-                    Небольшое наблюдение
-                  </div>
-                  <div>{liveMessage}</div>
-                </div>
-              ) : null}
             </div>
+            {liveSupportMessage ? (
+              <div className="mt-3 rounded-lg border border-violet-200 bg-violet-50 px-4 py-3 text-sm text-violet-900">
+                {liveSupportMessage}
+              </div>
+            ) : null}
+            {isLiveSupportBingeScenario ? (
+              <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Что можно сделать дальше
+                </h3>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+                  <li>Сейчас не нужно ничего компенсировать или наказывать себя</li>
+                  <li>Следующий приём пищи — обычный, без ограничений</li>
+                  <li>Воду в течение дня пить нужно — это поможет мягко вернуться в ритм</li>
+                </ul>
+              </div>
+            ) : null}
+            {isLiveSupportSkipScenario ? (
+              <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Что можно сделать дальше
+                </h3>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+                  <li>Сейчас спокойно поесть, даже если уже не по плану</li>
+                  <li>Не пропускать следующий приём пищи</li>
+                  <li>Воду в течение дня пить нужно — начните со стакана прямо сейчас</li>
+                </ul>
+              </div>
+            ) : null}
+            {isLiveSupportFatigueScenario ? (
+              <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  Что можно сделать дальше
+                </h3>
+                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
+                  <li>Выбрать самый простой приём пищи без сложной готовки</li>
+                  <li>Не усиливать нагрузку вечером</li>
+                  <li>Воду в течение дня пить нужно — это поможет поддержать состояние</li>
+                </ul>
+              </div>
+            ) : null}
           </section>
           {import.meta.env.DEV ? (
-            <section className="rounded-lg border border-dashed border-amber-200 bg-amber-50/40 p-4">
-              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-amber-800">
-                Dev only
-              </p>
-              <h2 className="mb-2 text-sm font-medium text-slate-800">Чат с Олесей</h2>
+            <section className="rounded-lg border border-slate-200 bg-white p-4">
+              <h2 className="mb-2 text-sm font-semibold text-slate-900">Чат с Олесей</h2>
               <p className="mb-3 text-sm text-slate-600">
                 Можно написать про питание, тревоги, усталость или то, что мешает пройти день.
               </p>
-              <textarea
-                value={chatMessage}
-                onChange={(e) => setChatMessage(e.target.value)}
-                rows={3}
-                placeholder="Например: тревожно, весь день тянет на сладкое, боюсь сорваться вечером"
-                className="mb-3 w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
-              />
+              <div className="mb-3">
+                <p className="mb-1 text-xs text-slate-500">Задайте мне вопрос</p>
+                <textarea
+                  value={chatMessage}
+                  onChange={(e) => setChatMessage(e.target.value)}
+                  rows={3}
+                  placeholder="Например: тревожно, весь день тянет на сладкое, боюсь сорваться вечером"
+                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none ring-accent/30 focus:ring"
+                />
+              </div>
               <button
                 type="button"
                 disabled={chatLoading}
@@ -657,7 +787,7 @@ export function DayPage({
                     setChatLoading(false);
                   }
                 }}
-                className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60"
+                className="mt-2 rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-60"
               >
                 {chatLoading ? "Жду ответ..." : "Спросить Олесю"}
               </button>
@@ -665,15 +795,15 @@ export function DayPage({
                 <p className="mt-3 text-sm text-red-700">{chatError}</p>
               ) : null}
               {chatLoading ? (
-                <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-indigo-700">
+                <div className="mt-3 rounded-xl border border-violet-200 bg-violet-100/70 p-4 text-sm text-violet-950">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-violet-800">
                     Олеся отвечает
                   </p>
                   <p>Олеся печатает...</p>
                 </div>
               ) : chatReply ? (
-                <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-indigo-700">
+                <div className="mt-3 rounded-xl border border-violet-200 bg-violet-100/70 p-4 text-sm text-violet-950">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-violet-800">
                     Олеся отвечает
                   </p>
                   <p className="whitespace-pre-wrap">{chatReply}</p>
@@ -742,7 +872,6 @@ export function DayPage({
               );
               setDayCompleted(true);
               setActualDeviation(null);
-              setLiveMessage(null);
               setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
             }}
             className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover"
@@ -804,7 +933,6 @@ export function DayPage({
               setTomorrowSuggestion(null);
               setAssistantResponse(null);
               setDayContext("");
-              setLiveMessage(null);
               setActualMeals({ breakfast: "", lunch: "", snacks: "", dinner: "" });
               setChatMessage("");
               setChatReply(null);
@@ -816,11 +944,6 @@ export function DayPage({
           </button>
         </div>
       )}
-      {!dayCompleted ? (
-        <p className="rounded-md bg-surface-muted p-3 text-sm text-slate-600">
-          Мягкий итог дня после выполнения появится здесь (мок).
-        </p>
-      ) : null}
     </div>
   );
 }
