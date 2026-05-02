@@ -1,4 +1,5 @@
 import type { ClientQuestionnaire } from "../questionnaire";
+import { adaptProgramWithAI } from "./adaptProgramWithAI";
 import { buildPersonalProgram } from "./buildPersonalProgram";
 import { loadPersonalProgram, savePersonalProgram } from "./programStorage";
 import type { PersonalProgram } from "./types";
@@ -9,8 +10,8 @@ type BuildPersonalProgramOptionsArg = NonNullable<
 >;
 
 /**
- * Единая точка получения персональной программы: детерминированная сборка +
- * в будущем — опциональная AI-адаптация при наличии ключа OpenRouter.
+ * Единая точка получения персональной программы: кэш, детерминированная сборка
+ * и опциональная AI-адаптация при наличии ключа OpenRouter.
  */
 export async function getPersonalProgram(
   questionnaire: ClientQuestionnaire,
@@ -18,17 +19,62 @@ export async function getPersonalProgram(
 ): Promise<PersonalProgram> {
   const cached = loadPersonalProgram();
   if (cached) {
+    if (import.meta.env.DEV) {
+      console.info("[getPersonalProgram] cache hit");
+    }
     return cached;
   }
 
+  if (import.meta.env.DEV) {
+    console.info("[getPersonalProgram] cache miss");
+  }
+
   const baseProgram = buildPersonalProgram(questionnaire, options);
-  savePersonalProgram(baseProgram);
 
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim();
+  if (import.meta.env.DEV) {
+    console.info("[getPersonalProgram] hasApiKey:", Boolean(apiKey));
+  }
+
   if (!apiKey) {
+    if (import.meta.env.DEV) {
+      console.info(
+        "[getPersonalProgram] save nutrition.personalProgram (baseProgram, no AI)",
+      );
+      console.info("[getPersonalProgram] called adaptProgramWithAI:", false);
+    }
+    savePersonalProgram(baseProgram);
     return baseProgram;
   }
 
-  // Заглушка: здесь будет вызов адаптации программы через AI (после согласования контракта).
-  return baseProgram;
+  if (import.meta.env.DEV) {
+    console.info("[getPersonalProgram] called adaptProgramWithAI:", true);
+  }
+
+  try {
+    const adapted = await adaptProgramWithAI(
+      baseProgram,
+      questionnaire,
+      apiKey,
+    );
+    if (import.meta.env.DEV) {
+      console.info(
+        "[getPersonalProgram] adapted === baseProgram:",
+        adapted === baseProgram,
+      );
+      console.info(
+        "[getPersonalProgram] save nutrition.personalProgram (adapted)",
+      );
+    }
+    savePersonalProgram(adapted);
+    return adapted;
+  } catch {
+    if (import.meta.env.DEV) {
+      console.info(
+        "[getPersonalProgram] save nutrition.personalProgram (baseProgram, AI error)",
+      );
+    }
+    savePersonalProgram(baseProgram);
+    return baseProgram;
+  }
 }

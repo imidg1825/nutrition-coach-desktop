@@ -38,23 +38,23 @@ const DAY_TEMPLATES: DayTemplate[] = [
     dinner: "Курица с овощами",
   },
   {
-    breakfast: "Творог или замена",
-    lunch: "Лёгкий суп + курица, рыба, индейка или яйца",
+    breakfast: "Творог с ягодами",
+    lunch: "Лёгкий куриный суп с овощами",
     dinner: "Рыба с овощами",
   },
   {
-    breakfast: "Овсянка или яйцо",
+    breakfast: "Овсянка с бананом",
     lunch: "Булгур с птицей",
-    dinner: "Овощное рагу с белком",
+    dinner: "Овощное рагу с курицей",
   },
   {
-    breakfast: "Гречка или омлет",
+    breakfast: "Омлет с зеленью",
     lunch: "Суп с курицей",
-    dinner: "Рыба или птица",
+    dinner: "Запечённая рыба с овощами",
   },
   {
     breakfast: "Каша с фруктом",
-    lunch: "Курица/рыба с гарниром",
+    lunch: "Курица с гречкой и салатом",
     dinner: "Лёгкий ужин с овощами",
   },
 ];
@@ -140,11 +140,11 @@ function buildPortionGuidance(
   }
   switch (questionnaire.dayScheduleAndWork.activityLevel) {
     case "низкий":
-      return "Умеренные порции, больше овощей и белка, перекусы небольшие.";
+      return "Умеренные порции, больше овощей, курицы, рыбы или яиц, перекусы небольшие.";
     case "средний":
       return "Умеренные порции без жёстких ограничений, акцент на регулярность и качество еды.";
     case "высокий":
-      return "Не урезать питание резко: оставить мясо/рыба/яйцо, овощи и сложные углеводы.";
+      return "Не урезать питание резко: оставить мясо, рыбу, яйца, овощи, гречку, рис или картофель.";
   }
 }
 
@@ -160,17 +160,21 @@ function meal(
 }
 
 const PROTEIN_SOURCE_VARIANTS = [
-  "курица или индейка",
-  "рыба или морепродукты",
-  "яйца или птица",
-  "нежирное мясо или рыба",
+  "курица",
+  "индейка",
+  "говядина",
+  "рыба",
+  "яйцо",
+  "кролик",
 ];
 
 const PROTEIN_PHRASE_VARIANTS = [
-  "курица или рыба",
-  "птица или рыба",
-  "мясо/рыба/яйцо",
-  "один из вариантов: курица, рыба или яйца",
+  "курица",
+  "индейка",
+  "говядина",
+  "рыба",
+  "яйцо",
+  "кролик",
 ];
 
 const DAY_ALTERNATIVE_TEMPLATES: DayAlternativeTemplate[] = [
@@ -338,13 +342,13 @@ export function buildPersonalProgram(
 
   const snackVariants = shouldAvoidSugar
     ? [
-        "фрукт или чай без сахара",
+        "яблоко и чай без сахара",
         "яйцо и овощи",
         "овощная нарезка и несладкий напиток",
         "фрукт (небольшая порция)",
       ]
     : [
-        "фрукт или чай",
+        "яблоко и чай",
         "яйцо и овощи",
         "овощная нарезка и вода",
         "фрукт (небольшая порция)",
@@ -362,8 +366,8 @@ export function buildPersonalProgram(
       DAY_ALTERNATIVE_TEMPLATES[i % DAY_ALTERNATIVE_TEMPLATES.length];
 
     const breakfastDish =
-      template.breakfast === "Творог или замена" && hasLactoseIntolerance
-        ? "яйцо или каша с фруктом"
+      template.breakfast === "Творог с ягодами" && hasLactoseIntolerance
+        ? "Овсянка с фруктом"
         : template.breakfast;
 
     const cookingSuffix = hasFryingOrFatRestrictions
@@ -424,8 +428,8 @@ export function buildPersonalProgram(
           "secondSnack",
           "Второй перекус",
           shouldAvoidSugar
-            ? "овощи, яйцо или чай без сахара"
-            : "овощи, яйцо или чай",
+            ? "овощи и яйцо, чай без сахара"
+            : "овощи и яйцо, чай",
           "Маленькая порция",
           `Небольшой второй перекус без перегруза.${sugarSuffix}`,
           "Фрукт или овощная нарезка",

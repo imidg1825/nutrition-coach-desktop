@@ -141,7 +141,7 @@ export function ProgressPage({
   if (personalProgram === null) {
     return (
       <div className="p-6 text-sm text-slate-500">
-        Подбираю для вас программу питания...
+        Олеся собирает программу под вашу анкету, ограничения и привычки...
       </div>
     );
   }
