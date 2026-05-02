@@ -1,3 +1,9 @@
+import {
+  buildBoundaryMessage,
+  buildMedicalSafetyMessage,
+  buildSoftRedirectMessage,
+  detectChatIntent,
+} from "./chatIntent";
 import { callOpenRouterChat } from "./openRouterClient";
 
 const OLESYA_CHAT_SYSTEM_PROMPT = `Ты — Олеся, нутрициолог с опытом, но главное — спокойный и поддерживающий человек.
@@ -72,6 +78,24 @@ const OLESYA_CHAT_SYSTEM_PROMPT = `Ты — Олеся, нутрициолог �
 Если ситуация сложная:
 — предложить обратиться за персональной консультацией`;
 
+const OLESYA_MEDICAL_INTENT_ADDENDUM = `
+
+Контекст вопроса: запрос с медицинской, фармацевтической или лабораторной тематикой (препараты, БАДы, анализы, диагнозы, врачебные назначения).
+
+Разрешено:
+- дать общий осторожный фармацевтический или нутрициологический комментарий простыми словами.
+
+Запрещено:
+- назначать препараты, дозировки, схемы приёма;
+- советовать отменять, заменять или продолжать лечение;
+- подменять врача или давать медицинский диагноз.
+
+Обязательно:
+- заверши ответ фразой дословно: "${buildMedicalSafetyMessage()}"
+- стиль Олеси: 2–4 коротких предложения, без списков, мягко, один следующий шаг; не перегружай.
+
+Если в вопросе фигурируют диагнозы, беременность, диабет, ЖКТ, гормоны, сильные или тревожные симптомы, анализы — мягко рекомендуй персональную консультацию врача или профильного специалиста (в дополнение к общему комментарию, не вместо дисклеймера).`;
+
 export type BuildOlesyaChatInput = {
   userMessage: string;
   dayContext?: string;
@@ -86,6 +110,14 @@ export type BuildOlesyaChatInput = {
 export async function buildOlesyaChatResponse(
   input: BuildOlesyaChatInput,
 ): Promise<string> {
+  const intent = detectChatIntent(input.userMessage);
+  if (intent === "offtopic") {
+    return buildSoftRedirectMessage();
+  }
+  if (intent === "boundary") {
+    return buildBoundaryMessage();
+  }
+
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
     throw new Error("VITE_OPENROUTER_API_KEY is required");
@@ -101,7 +133,9 @@ export async function buildOlesyaChatResponse(
     .filter(Boolean)
     .join("\n");
 
-  const systemPromptWithContext = `${OLESYA_CHAT_SYSTEM_PROMPT}
+  const systemPromptWithContext = `${OLESYA_CHAT_SYSTEM_PROMPT}${
+    intent === "medical" ? OLESYA_MEDICAL_INTENT_ADDENDUM : ""
+  }
 
 Контекст текущего дня:
 ${daySummaryText || "нет данных"}
