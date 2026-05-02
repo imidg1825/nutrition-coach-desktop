@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
 import {
   questionnaireDefaults,
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
-import { buildPersonalProgram } from "../modules/programBuilder";
+import {
+  getPersonalProgram,
+  type PersonalProgram,
+} from "../modules/programBuilder";
 import type { PageProps } from "./pageProps";
 
 const DAILY_ACTUALS_STORAGE_KEY = "nutrition.dailyActuals";
@@ -110,10 +114,38 @@ function readDailyActuals(): Record<string, DailyActual> {
   }
 }
 
-export function ProgressPage({ mock }: PageProps) {
-  const q = mergeQuestionnaireFromProfile(mock.user.profile);
+export function ProgressPage({
+  mock,
+  clientQuestionnaire,
+}: PageProps & { clientQuestionnaire: ClientQuestionnaire | null }) {
+  const q = clientQuestionnaire ?? mergeQuestionnaireFromProfile(mock.user.profile);
   const duration = readProgramDuration();
-  const personalProgram = buildPersonalProgram(q, { duration });
+  const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPersonalProgram(q, { duration }).then((program) => {
+      if (mounted) {
+        setPersonalProgram(program);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [q, duration]);
+
+  if (personalProgram === null) {
+    return (
+      <div className="p-6 text-sm text-slate-500">
+        Подбираю для вас программу питания...
+      </div>
+    );
+  }
+
   const totalDays = personalProgram.totalDays || personalProgram.days.length;
   const dailyActuals = readDailyActuals();
   const actualEntries = Object.values(dailyActuals);

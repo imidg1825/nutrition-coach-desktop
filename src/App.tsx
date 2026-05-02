@@ -282,7 +282,12 @@ export default function App() {
       body = <RecommendationsPage {...pageProps} />;
       break;
     case "progress":
-      body = <ProgressPage {...pageProps} />;
+      body = (
+        <ProgressPage
+          {...pageProps}
+          clientQuestionnaire={clientQuestionnaire}
+        />
+      );
       break;
     case "history":
       body = <HistoryPage {...pageProps} />;
