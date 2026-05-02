@@ -79,6 +79,29 @@ function getLiveSupportMessage(
   return null;
 }
 
+type LiveSupportActionScenario = "binge" | "skip" | "fatigue";
+
+const LIVE_SUPPORT_ACTION_ITEMS: Record<
+  LiveSupportActionScenario,
+  readonly string[]
+> = {
+  binge: [
+    "Сейчас не нужно ничего компенсировать или наказывать себя",
+    "Следующий приём пищи — обычный, без ограничений",
+    "Воду в течение дня пить нужно — это поможет мягко вернуться в ритм",
+  ],
+  skip: [
+    "Сейчас спокойно поесть, даже если уже не по плану",
+    "Не пропускать следующий приём пищи",
+    "Воду в течение дня пить нужно — начните со стакана прямо сейчас",
+  ],
+  fatigue: [
+    "Выбрать самый простой приём пищи без сложной готовки",
+    "Не усиливать нагрузку вечером",
+    "Воду в течение дня пить нужно — это поможет поддержать состояние",
+  ],
+};
+
 type ActualDeviation = "same" | "less" | "more";
 type ActualMeals = {
   breakfast: string;
@@ -499,6 +522,15 @@ export function DayPage({
     isLiveSupportSweetScenario,
   );
 
+  const liveSupportActionScenario: LiveSupportActionScenario | null =
+    isLiveSupportBingeScenario
+      ? "binge"
+      : isLiveSupportSkipScenario
+        ? "skip"
+        : isLiveSupportFatigueScenario
+          ? "fatigue"
+          : null;
+
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <button
@@ -713,45 +745,22 @@ export function DayPage({
                 {liveSupportMessage}
               </div>
             ) : null}
-            {isLiveSupportBingeScenario ? (
+            {liveSupportActionScenario ? (
               <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm">
                 <h3 className="text-sm font-semibold text-slate-900">
                   Что можно сделать дальше
                 </h3>
                 <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
-                  <li>Сейчас не нужно ничего компенсировать или наказывать себя</li>
-                  <li>Следующий приём пищи — обычный, без ограничений</li>
-                  <li>Воду в течение дня пить нужно — это поможет мягко вернуться в ритм</li>
-                </ul>
-              </div>
-            ) : null}
-            {isLiveSupportSkipScenario ? (
-              <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Что можно сделать дальше
-                </h3>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
-                  <li>Сейчас спокойно поесть, даже если уже не по плану</li>
-                  <li>Не пропускать следующий приём пищи</li>
-                  <li>Воду в течение дня пить нужно — начните со стакана прямо сейчас</li>
-                </ul>
-              </div>
-            ) : null}
-            {isLiveSupportFatigueScenario ? (
-              <div className="mt-3 rounded-lg border border-slate-300 bg-slate-50 px-4 py-3 shadow-sm">
-                <h3 className="text-sm font-semibold text-slate-900">
-                  Что можно сделать дальше
-                </h3>
-                <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-slate-700">
-                  <li>Выбрать самый простой приём пищи без сложной готовки</li>
-                  <li>Не усиливать нагрузку вечером</li>
-                  <li>Воду в течение дня пить нужно — это поможет поддержать состояние</li>
+                  {LIVE_SUPPORT_ACTION_ITEMS[liveSupportActionScenario].map(
+                    (line, idx) => (
+                      <li key={`${liveSupportActionScenario}-${idx}`}>{line}</li>
+                    ),
+                  )}
                 </ul>
               </div>
             ) : null}
           </section>
-          {import.meta.env.DEV ? (
-            <section className="rounded-lg border border-slate-200 bg-white p-4">
+          <section className="rounded-lg border border-slate-200 bg-white p-4">
               <h2 className="mb-2 text-sm font-semibold text-slate-900">Чат с Олесей</h2>
               <p className="mb-3 text-sm text-slate-600">
                 Можно написать про питание, тревоги, усталость или то, что мешает пройти день.
@@ -810,7 +819,6 @@ export function DayPage({
                 </div>
               ) : null}
             </section>
-          ) : null}
           <button
             type="button"
             onClick={() => {
