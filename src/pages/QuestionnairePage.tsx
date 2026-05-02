@@ -8,6 +8,7 @@ import {
   type FrequencyNoSometimesOften,
   type FoodBudgetLevel,
   type FrequencyNeverSometimesOften,
+  type PreferredAddressing,
   type ProductAvailability,
   type ProgramDurationDays,
   type SaltUsage,
@@ -239,6 +240,25 @@ export function QuestionnairePage({
                 }
                 autoComplete="given-name"
               />
+            </Field>
+            <Field label="Как к вам обращаться в сообщениях?">
+              <select
+                className={selectClass}
+                value={form.basics.preferredAddressing}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    basics: {
+                      ...f.basics,
+                      preferredAddressing: e.target.value as PreferredAddressing,
+                    },
+                  }))
+                }
+              >
+                <option value="female">в женском роде</option>
+                <option value="male">в мужском роде</option>
+                <option value="neutral">нейтрально</option>
+              </select>
             </Field>
             <div className="grid gap-5 sm:grid-cols-2">
               <Field label="Возраст">

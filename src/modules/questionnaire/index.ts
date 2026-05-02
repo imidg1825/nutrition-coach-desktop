@@ -6,6 +6,7 @@ export type {
   FoodBudgetLevel,
   FrequencyNoSometimesOften,
   FrequencyNeverSometimesOften,
+  PreferredAddressing,
   ProductAvailability,
   ProgramDurationDays,
   QuestionnaireBasics,

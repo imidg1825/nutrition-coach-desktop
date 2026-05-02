@@ -9,6 +9,7 @@ export type Screen =
   | "day"
   | "recommendations"
   | "progress"
+  | "history"
   | "finish"
   | "updates"
   | "settings";

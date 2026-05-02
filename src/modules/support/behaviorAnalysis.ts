@@ -1,10 +1,13 @@
 import behaviorScenarios from "../../data/seed/behavior-scenarios.json";
+import type { RecoveryTriggerScenario } from "./recoveryMode";
 
 export type LiveDayMeals = {
   breakfast: string;
   lunch: string;
   snacks: string;
   dinner: string;
+  /** Свободный текст «Как прошёл день» — учитывается в live-наблюдении вместе с приёмами пищи. */
+  dayContext?: string;
 };
 
 type LiveScenarioConfig = {
@@ -29,7 +32,7 @@ const LIVE_SCENARIO_KEYWORDS = {
     "ролл",
     "шаурм",
   ],
-  sweetsCraving: ["сладк", "шоколад", "печенье", "конфет", "сахар"],
+  sweetsCraving: ["сладк", "шоколад", "печенье", "конфет", "сахар", "пирожн"],
   eveningSnacking: [
     "вечером",
     "вечер",
@@ -43,7 +46,16 @@ const LIVE_SCENARIO_KEYWORDS = {
   fatigueChaoticDay: [
     "устал",
     "устала",
+    "без сил",
+    "вымот",
     "нет сил",
+    "тяжёл",
+    "тяжел",
+    "тежол",
+    "тижол",
+    "тяжело",
+    "тяжелый день",
+    "тяжёлый день",
     "хаос",
     "завал",
     "стресс",
@@ -74,7 +86,13 @@ const LIVE_SCENARIO_PRIORITY: LiveScenarioKey[] = [
 
 function composeDayNotes(input: string | LiveDayMeals): string {
   if (typeof input === "string") return input.trim().toLowerCase();
-  return [input.breakfast, input.lunch, input.snacks, input.dinner]
+  return [
+    input.dayContext ?? "",
+    input.breakfast,
+    input.lunch,
+    input.snacks,
+    input.dinner,
+  ]
     .join(" ")
     .trim()
     .toLowerCase();
@@ -175,5 +193,55 @@ export function getDaySummaryInsight(
       "Сегодня в питании был непростой момент, и это нормально.",
     recommendedAction: getScenarioRecommendedAction(primaryScenario),
   };
+}
+
+export function getRecoveryActivation(input: string | LiveDayMeals): {
+  shouldActivate: boolean;
+  triggeredBy: RecoveryTriggerScenario[];
+  durationDays: 2 | 3;
+} {
+  const detected = getDetectedScenarios(input);
+  const recoveryCandidates: RecoveryTriggerScenario[] = [
+    "overeating",
+    "sweetsCraving",
+    "fatigueChaoticDay",
+    "eveningSnacking",
+  ];
+  const triggeredBy = detected.filter((scenario): scenario is RecoveryTriggerScenario =>
+    recoveryCandidates.includes(scenario as RecoveryTriggerScenario),
+  );
+
+  if (triggeredBy.length === 0) {
+    return {
+      shouldActivate: false,
+      triggeredBy: [],
+      durationDays: 2,
+    };
+  }
+
+  return {
+    shouldActivate: true,
+    triggeredBy,
+    durationDays: triggeredBy.length >= 2 ? 3 : 2,
+  };
+}
+
+export type UserProfileType = "default" | "fatigue";
+
+export function detectUserProfileFromScenarios(
+  scenarios: string[],
+): UserProfileType {
+  const fatigueScenarios = ["fatigueChaoticDay"];
+
+  const fatigueCount = scenarios.filter((s) =>
+    fatigueScenarios.includes(s),
+  ).length;
+
+  // если есть fatigue — считаем пользователя перегруженным
+  if (fatigueCount >= 1) {
+    return "fatigue";
+  }
+
+  return "default";
 }
 

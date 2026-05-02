@@ -5,10 +5,14 @@
  * пищевые привычки и способы приготовления.
  */
 
+/** Как обращаться к пользователю в текстах поддержки. */
+export type PreferredAddressing = "female" | "male" | "neutral";
+
 /** Шаг 1. Базовые данные — для кого собирается программа. */
 export type QuestionnaireBasics = {
   /** имя */
   firstName: string;
+  preferredAddressing: PreferredAddressing;
   age: number;
   heightCm: number;
   weightKg: number;

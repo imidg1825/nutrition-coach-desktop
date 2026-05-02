@@ -4,6 +4,7 @@ export { CalendarPage } from "./CalendarPage";
 export { DashboardPage } from "./DashboardPage";
 export { DayPage } from "./DayPage";
 export { FinishPage } from "./FinishPage";
+export { HistoryPage } from "./HistoryPage";
 export { ProgressPage } from "./ProgressPage";
 export { NutritionPlanPage } from "./NutritionPlanPage";
 export { QuestionnairePage } from "./QuestionnairePage";

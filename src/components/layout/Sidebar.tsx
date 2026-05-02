@@ -13,6 +13,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: "day", label: "День" },
   { id: "recommendations", label: "Рекомендации" },
   { id: "progress", label: "Прогресс" },
+  { id: "history", label: "История" },
   { id: "finish", label: "Итог" },
   { id: "updates", label: "Обновления" },
   { id: "settings", label: "Настройки" },

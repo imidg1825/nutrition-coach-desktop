@@ -8,6 +8,7 @@ import {
   DashboardPage,
   DayPage,
   FinishPage,
+  HistoryPage,
   ProgressPage,
   QuestionnairePage,
   RecommendationsPage,
@@ -32,6 +33,7 @@ const VALID_SCREENS: Screen[] = [
   "day",
   "recommendations",
   "progress",
+  "history",
   "finish",
   "updates",
   "settings",
@@ -233,6 +235,9 @@ export default function App() {
       break;
     case "progress":
       body = <ProgressPage {...pageProps} />;
+      break;
+    case "history":
+      body = <HistoryPage {...pageProps} />;
       break;
     case "finish":
       body = <FinishPage {...pageProps} />;

@@ -5,6 +5,7 @@ import {
 } from "../modules/questionnaire";
 import { buildPersonalProgram } from "../modules/programBuilder";
 import { countCompletedDaysFromDailyActuals } from "../modules/support/completedDays";
+import { isRecoveryActive, readRecoveryState } from "../modules/support/recoveryMode";
 import { consumeReturnAfterBreakMessage } from "../modules/support/returnAfterBreak";
 import type { PageProps } from "./pageProps";
 
@@ -172,6 +173,16 @@ function getTodayContextMessage({
   return `Продолжаем с дня ${nextActionDay}. Главное — спокойно вернуться к плану и сделать один понятный шаг.`;
 }
 
+function getDayWord(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+
+  if (mod100 >= 11 && mod100 <= 14) return "дней";
+  if (mod10 === 1) return "день";
+  if (mod10 >= 2 && mod10 <= 4) return "дня";
+  return "дней";
+}
+
 export function DashboardPage({
   mock,
   navigate,
@@ -214,6 +225,8 @@ export function DashboardPage({
     personalProgram.days[nextActionDay - 1] ??
     personalProgram.days[personalProgram.days.length - 1];
   const returnAfterBreakMessage = useMemo(() => consumeReturnAfterBreakMessage(), []);
+  const recoveryState = readRecoveryState();
+  const hasActiveRecovery = isRecoveryActive(recoveryState);
 
   const ctaLabel = isNextActionDayCompleted
     ? `Посмотреть день ${nextActionDay}`
@@ -232,6 +245,13 @@ export function DashboardPage({
       {returnAfterBreakMessage ? (
         <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-950">
           {returnAfterBreakMessage}
+        </div>
+      ) : null}
+      {hasActiveRecovery ? (
+        <div className="rounded-lg border border-sky-100 bg-sky-50/80 px-4 py-3 text-sm leading-relaxed text-sky-900">
+          Сейчас действует мягкий режим на ближайшие {recoveryState.remainingDays}{" "}
+          {getDayWord(recoveryState.remainingDays)}. Олеся немного упростит задания
+          и питание, чтобы вернуться в ритм без давления.
         </div>
       ) : null}
       <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-sm text-emerald-900">

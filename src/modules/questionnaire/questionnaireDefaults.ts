@@ -4,6 +4,7 @@ import type { ClientQuestionnaire } from "./types";
 export const questionnaireDefaults = {
   basics: {
     firstName: "",
+    preferredAddressing: "neutral",
     age: 0,
     heightCm: 0,
     weightKg: 0,
