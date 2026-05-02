@@ -616,6 +616,7 @@ export function DayPage({
                       userMessage: chatMessage,
                       dayContext,
                       actualMeals,
+                      clientQuestionnaire: q,
                     });
                     setChatReply(reply);
                   } catch (err: unknown) {

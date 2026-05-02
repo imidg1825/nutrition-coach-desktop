@@ -1,3 +1,4 @@
+import type { ClientQuestionnaire } from "../questionnaire";
 import {
   buildBoundaryMessage,
   buildMedicalSafetyMessage,
@@ -5,6 +6,109 @@ import {
   detectChatIntent,
 } from "./chatIntent";
 import { callOpenRouterChat } from "./openRouterClient";
+
+const ADDRESSING_LABELS: Record<
+  ClientQuestionnaire["basics"]["preferredAddressing"],
+  string
+> = {
+  female: "женский",
+  male: "мужской",
+  neutral: "нейтральное обращение",
+};
+
+function trimNonEmpty(s: string | undefined | null): string | null {
+  const t = (s ?? "").trim();
+  return t.length > 0 ? t : null;
+}
+
+/** Строки блока «Контекст клиента»; пустые поля анкеты не попадают. */
+function buildClientContextLines(q: ClientQuestionnaire): string[] {
+  const lines: string[] = [];
+  const { basics: b, goalAndDuration: g } = q;
+  const mp = q.medicalParticularities;
+  const h = q.healthAndAnalyses;
+  const hab = q.habitsDifficultiesAndSupport;
+  const f = q.foodAndProducts;
+
+  const goalParts = [trimNonEmpty(g.primaryGoal), trimNonEmpty(g.desiredOutcome)].filter(
+    Boolean,
+  ) as string[];
+  if (goalParts.length) {
+    lines.push(`- Цель: ${goalParts.join("; ")}`);
+  }
+
+  const agePart =
+    typeof b.age === "number" && b.age > 0 ? `${b.age} лет` : null;
+  const genderPart = ADDRESSING_LABELS[b.preferredAddressing]
+    ? `обращение: ${ADDRESSING_LABELS[b.preferredAddressing]}`
+    : null;
+  const weightPart =
+    typeof b.weightKg === "number" && b.weightKg > 0
+      ? `вес: ${b.weightKg} кг`
+      : null;
+  const basicsParts = [agePart, genderPart, weightPart].filter(Boolean);
+  if (basicsParts.length) {
+    lines.push(`- Возраст: ${basicsParts.join(", ")}`);
+  }
+
+  const medParts = [
+    trimNonEmpty(mp.medicalParticularitiesDescription),
+    trimNonEmpty(mp.foodAllergies),
+    trimNonEmpty(mp.intolerances),
+    trimNonEmpty(mp.medicalDietaryRestrictions),
+    trimNonEmpty(h.healthNotes),
+  ].filter(Boolean) as string[];
+  if (medParts.length) {
+    lines.push(`- Особенности здоровья: ${medParts.join("; ")}`);
+  }
+
+  const lab = trimNonEmpty(h.labNotes);
+  if (lab) {
+    lines.push(`- Анализы: ${lab}`);
+  }
+
+  const meds = trimNonEmpty(h.medicationsNotes);
+  if (meds) {
+    lines.push(`- Препараты: ${meds}`);
+  }
+
+  const habitParts = [
+    trimNonEmpty(hab.mainChallenges),
+    trimNonEmpty(hab.whatOftenGetsInTheWay),
+    trimNonEmpty(hab.habitsHinderingProgressNotes),
+  ].filter(Boolean) as string[];
+  if (habitParts.length) {
+    lines.push(`- Привычки и сложности: ${habitParts.join("; ")}`);
+  }
+
+  const foodParts = [
+    trimNonEmpty(f.favoriteFoods),
+    trimNonEmpty(f.foodsNotEaten),
+    trimNonEmpty(f.commonNutritionChallenges),
+    trimNonEmpty(f.snacksAndTiming),
+  ].filter(Boolean) as string[];
+  if (foodParts.length) {
+    lines.push(`- Питание и предпочтения: ${foodParts.join("; ")}`);
+  }
+
+  return lines;
+}
+
+function buildUserContentWithClientContext(
+  userMessage: string,
+  clientQuestionnaire: ClientQuestionnaire | null | undefined,
+): string {
+  const trimmed = userMessage.trim();
+  if (!clientQuestionnaire) return trimmed;
+
+  const ctxLines = buildClientContextLines(clientQuestionnaire);
+  if (ctxLines.length === 0) return trimmed;
+
+  return `Контекст клиента:
+${ctxLines.join("\n")}
+
+${trimmed}`;
+}
 
 const OLESYA_CHAT_SYSTEM_PROMPT = `Ты — Олеся, нутрициолог с опытом, но главное — спокойный и поддерживающий человек.
 
@@ -76,7 +180,13 @@ const OLESYA_CHAT_SYSTEM_PROMPT = `Ты — Олеся, нутрициолог �
 — мягко вернуть к теме
 
 Если ситуация сложная:
-— предложить обратиться за персональной консультацией`;
+— предложить обратиться за персональной консультацией
+
+Учитывай контекст клиента при ответе, но:
+- не ставь диагнозы
+- не назначай лечение или препараты
+- не давай дозировки
+- используй это только для мягкой адаптации рекомендаций по питанию и поведению`;
 
 const OLESYA_MEDICAL_INTENT_ADDENDUM = `
 
@@ -105,6 +215,8 @@ export type BuildOlesyaChatInput = {
     snacks?: string;
     dinner?: string;
   };
+  /** Анкета для мягкой персонализации ответов (блок «Контекст клиента» в user message). */
+  clientQuestionnaire?: ClientQuestionnaire | null;
 };
 
 export async function buildOlesyaChatResponse(
@@ -146,11 +258,16 @@ ${daySummaryText || "нет данных"}
 - не перечисляй всё
 - не превращай ответ в анализ`;
 
+  const userContent = buildUserContentWithClientContext(
+    input.userMessage,
+    input.clientQuestionnaire,
+  );
+
   const reply = await callOpenRouterChat({
     apiKey,
     messages: [
       { role: "system", content: systemPromptWithContext },
-      { role: "user", content: input.userMessage.trim() },
+      { role: "user", content: userContent },
     ],
   });
 
