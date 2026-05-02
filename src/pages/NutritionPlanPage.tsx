@@ -1,9 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   questionnaireDefaults,
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
-import { buildPersonalProgram } from "../modules/programBuilder";
+import {
+  getPersonalProgram,
+  type PersonalProgram,
+} from "../modules/programBuilder";
 import type { PageProps } from "./pageProps";
 
 function mergeQuestionnaireFromProfile(seed: unknown): ClientQuestionnaire {
@@ -115,10 +118,32 @@ export function NutritionPlanPage(
   } catch (_e) {
     // fallback 14
   }
-  const personalProgram = useMemo(
-    () => buildPersonalProgram(q, { duration }),
-    [q, duration],
+  const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
+    null,
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPersonalProgram(q, { duration }).then((program) => {
+      if (mounted) {
+        setPersonalProgram(program);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [q, duration]);
+
+  if (personalProgram === null) {
+    return (
+      <div className="p-6 text-sm text-slate-500">
+        Подбираю для вас программу питания...
+      </div>
+    );
+  }
+
   const totalDays = personalProgram.totalDays;
 
   const weightLossGoal = [
