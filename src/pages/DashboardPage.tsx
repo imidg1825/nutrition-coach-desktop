@@ -1,9 +1,12 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   questionnaireDefaults,
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
-import { buildPersonalProgram } from "../modules/programBuilder";
+import {
+  getPersonalProgram,
+  type PersonalProgram,
+} from "../modules/programBuilder";
 import { countCompletedDaysFromDailyActuals } from "../modules/support/completedDays";
 import { isRecoveryActive, readRecoveryState } from "../modules/support/recoveryMode";
 import { consumeReturnAfterBreakMessage } from "../modules/support/returnAfterBreak";
@@ -212,10 +215,34 @@ export function DashboardPage({
   }
 
   const q = clientQuestionnaire ?? mergeQuestionnaireFromProfile(mock.user.profile);
-  const personalProgram = useMemo(
-    () => buildPersonalProgram(q, { duration }),
-    [q, duration],
+  const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
+    null,
   );
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPersonalProgram(q, { duration }).then((program) => {
+      if (mounted) {
+        setPersonalProgram(program);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [q, duration]);
+
+  const returnAfterBreakMessage = useMemo(() => consumeReturnAfterBreakMessage(), []);
+
+  if (personalProgram === null) {
+    return (
+      <div className="p-6 text-sm text-slate-500">
+        Подбираю для вас программу питания...
+      </div>
+    );
+  }
+
   const totalDays = personalProgram.totalDays || personalProgram.days.length;
 
   const yesterdayDay = currentDay - 1;
@@ -228,7 +255,6 @@ export function DashboardPage({
   const todayProgramDay =
     personalProgram.days[nextActionDay - 1] ??
     personalProgram.days[personalProgram.days.length - 1];
-  const returnAfterBreakMessage = useMemo(() => consumeReturnAfterBreakMessage(), []);
   const recoveryState = readRecoveryState();
   const hasActiveRecovery = isRecoveryActive(recoveryState);
 
