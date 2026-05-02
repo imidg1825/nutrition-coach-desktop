@@ -3,7 +3,10 @@ import {
   questionnaireDefaults,
   type ClientQuestionnaire,
 } from "../modules/questionnaire";
-import { buildPersonalProgram } from "../modules/programBuilder";
+import {
+  getPersonalProgram,
+  type PersonalProgram,
+} from "../modules/programBuilder";
 import { buildAssistantResponse } from "../modules/ai/assistantResponse";
 import { buildOlesyaChatResponse } from "../modules/ai/olesyaChatResponse";
 import {
@@ -302,30 +305,37 @@ export function DayPage({
   } catch (_e) {
     // fallback 14
   }
-  const personalProgram = useMemo(
-    () => buildPersonalProgram(q, { duration }),
-    [q, duration],
-  );
-  const totalDays = personalProgram.totalDays || personalProgram.days.length;
   const [displayDayNumber, setDisplayDayNumber] = useState<number>(() =>
-    Math.min(countCompletedDaysFromDailyActuals() + 1, totalDays),
+    countCompletedDaysFromDailyActuals() + 1,
   );
-  const currentProgramDay =
-    personalProgram.days[displayDayNumber - 1] ??
-    personalProgram.days[personalProgram.days.length - 1];
-  const recoveryState = readRecoveryState();
-  const displayDay = applyRecoveryToProgramDay(currentProgramDay, recoveryState);
+  const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
+    null,
+  );
+
+  useEffect(() => {
+    let mounted = true;
+
+    getPersonalProgram(q, { duration }).then((program) => {
+      if (mounted) {
+        setPersonalProgram(program);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [q, duration]);
+
+  useEffect(() => {
+    if (personalProgram === null) return;
+    const td = personalProgram.totalDays || personalProgram.days.length;
+    setDisplayDayNumber((d) => Math.min(d, td));
+  }, [personalProgram]);
+
   const returnAfterBreakMessage = useMemo(
     () => consumeReturnAfterBreakMessage(),
     [],
   );
-  const hasMedicalData = Boolean(personalProgram.nutritionRules.medicalNote);
-  const weightLossGoal = personalProgram.nutritionRules.weightLossGoal;
-  const rec = mock.content.recommendations.items[0];
-
-  const updateMealField = (field: ActualMealField, value: string) => {
-    setActualMeals((prev) => ({ ...prev, [field]: value }));
-  };
 
   useEffect(() => {
     setLiveMessage(
@@ -380,6 +390,28 @@ export function DayPage({
       }),
     );
   }, [displayDayNumber]);
+
+  if (personalProgram === null) {
+    return (
+      <div className="p-6 text-sm text-slate-500">
+        Подбираю для вас программу питания...
+      </div>
+    );
+  }
+
+  const totalDays = personalProgram.totalDays || personalProgram.days.length;
+  const currentProgramDay =
+    personalProgram.days[displayDayNumber - 1] ??
+    personalProgram.days[personalProgram.days.length - 1];
+  const recoveryState = readRecoveryState();
+  const displayDay = applyRecoveryToProgramDay(currentProgramDay, recoveryState);
+  const hasMedicalData = Boolean(personalProgram.nutritionRules.medicalNote);
+  const weightLossGoal = personalProgram.nutritionRules.weightLossGoal;
+  const rec = mock.content.recommendations.items[0];
+
+  const updateMealField = (field: ActualMealField, value: string) => {
+    setActualMeals((prev) => ({ ...prev, [field]: value }));
+  };
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
