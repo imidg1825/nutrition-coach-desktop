@@ -1,5 +1,6 @@
 import type { ClientQuestionnaire } from "../questionnaire";
 import { buildPersonalProgram } from "./buildPersonalProgram";
+import { loadPersonalProgram, savePersonalProgram } from "./programStorage";
 import type { PersonalProgram } from "./types";
 
 /** Совпадает с опциями `buildPersonalProgram` (duration 7 | 14 | 30). */
@@ -15,7 +16,13 @@ export async function getPersonalProgram(
   questionnaire: ClientQuestionnaire,
   options?: BuildPersonalProgramOptionsArg,
 ): Promise<PersonalProgram> {
+  const cached = loadPersonalProgram();
+  if (cached) {
+    return cached;
+  }
+
   const baseProgram = buildPersonalProgram(questionnaire, options);
+  savePersonalProgram(baseProgram);
 
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
