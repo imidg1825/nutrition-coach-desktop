@@ -18,10 +18,7 @@ import {
   UpdatesPage,
 } from "./pages";
 import type { Screen } from "./types";
-import {
-  clearPersonalProgram,
-  clearPersonalProgramExplanation,
-} from "./modules/programBuilder/programStorage";
+import { clearPersonalProgram } from "./modules/programBuilder/programStorage";
 import {
   questionnaireDefaults,
   type ClientQuestionnaire,
@@ -208,7 +205,6 @@ export default function App() {
           initialQuestionnaire={clientQuestionnaire}
           onQuestionnaireComplete={(questionnaire) => {
             clearPersonalProgram();
-            clearPersonalProgramExplanation();
             setClientQuestionnaire(questionnaire);
             localStorage.setItem(
               CLIENT_QUESTIONNAIRE_STORAGE_KEY,

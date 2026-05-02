@@ -35,6 +35,7 @@ export function loadPersonalProgram(): PersonalProgram | null {
 
 export function clearPersonalProgram(): void {
   localStorage.removeItem(PERSONAL_PROGRAM_STORAGE_KEY);
+  clearPersonalProgramExplanation();
 }
 
 export function savePersonalProgramExplanation(explanation: string): void {
@@ -46,6 +47,7 @@ export function savePersonalProgramExplanation(explanation: string): void {
     PERSONAL_PROGRAM_EXPLANATION_STORAGE_KEY,
     trimmed,
   );
+  window.dispatchEvent(new Event("program-explanation-updated"));
 }
 
 export function loadPersonalProgramExplanation(): string | null {
