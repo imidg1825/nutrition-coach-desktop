@@ -59,9 +59,6 @@ export function getReturnAfterBreakMessage(): string {
 export function consumeReturnAfterBreakMessage(): string | null {
   try {
     const completedDays = countCompletedDaysFromDailyActuals();
-    console.log("returnAfterBreak FIX check", {
-      completedDays,
-    });
     if (completedDays === 0) return null;
 
     const shownToday = wasShownToday();
