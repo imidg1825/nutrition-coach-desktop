@@ -219,6 +219,9 @@ export type BuildOlesyaChatInput = {
   clientQuestionnaire?: ClientQuestionnaire | null;
 };
 
+const CHAT_API_FALLBACK_MESSAGE =
+  "Сейчас ответ не подгрузился — так бывает при сбое сети или если сервис временно недоступен. Это не ваша ошибка. Попробуйте написать чуть позже; а пока можно спокойно сделать один маленький шаг без давления на себя.";
+
 export async function buildOlesyaChatResponse(
   input: BuildOlesyaChatInput,
 ): Promise<string> {
@@ -263,15 +266,15 @@ ${daySummaryText || "нет данных"}
     input.clientQuestionnaire,
   );
 
-  const reply = await callOpenRouterChat({
-    apiKey,
-    messages: [
-      { role: "system", content: systemPromptWithContext },
-      { role: "user", content: userContent },
-    ],
-  });
-
-  console.log(reply);
-
-  return reply;
+  try {
+    return await callOpenRouterChat({
+      apiKey,
+      messages: [
+        { role: "system", content: systemPromptWithContext },
+        { role: "user", content: userContent },
+      ],
+    });
+  } catch {
+    return CHAT_API_FALLBACK_MESSAGE;
+  }
 }
