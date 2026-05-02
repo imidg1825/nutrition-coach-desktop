@@ -7,6 +7,7 @@ import {
   getPersonalProgram,
   type PersonalProgram,
 } from "../modules/programBuilder";
+import { estimateCalories } from "../modules/calories/calorieEstimator";
 import type { PageProps } from "./pageProps";
 
 const DAILY_ACTUALS_STORAGE_KEY = "nutrition.dailyActuals";
@@ -114,6 +115,37 @@ function readDailyActuals(): Record<string, DailyActual> {
   }
 }
 
+/** Тексты приёмов пищи из заметок дня (формат DayPage) или весь текст, если меток нет. */
+function mealTextFromNotes(notes: string): string {
+  const raw = notes.trim();
+  if (!raw) return "";
+  const lines = raw.split(/\r?\n/);
+  const collected: string[] = [];
+  const labels = ["завтрак:", "обед:", "перекусы:", "ужин:"];
+  for (const line of lines) {
+    const t = line.trim();
+    const low = t.toLowerCase();
+    for (const lab of labels) {
+      if (low.startsWith(lab)) {
+        const colon = t.indexOf(":");
+        const rest = colon >= 0 ? t.slice(colon + 1).trim() : "";
+        if (rest) collected.push(rest);
+        break;
+      }
+    }
+  }
+  if (collected.length > 0) return collected.join(" ");
+  return raw;
+}
+
+/** Средняя «плотность» описаний: порог ориентира (не медицина). */
+const ORIENT_HIGH_MIDPOINT = 850;
+
+type NutritionOrientState =
+  | { phase: "loading" }
+  | { phase: "sparse" }
+  | { phase: "ready"; avgMin: number; avgMax: number; tone: "high" | "normal" };
+
 export function ProgressPage({
   mock,
   clientQuestionnaire,
@@ -123,6 +155,10 @@ export function ProgressPage({
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
     null,
   );
+  const dailyActualsSnapshot = readDailyActuals();
+  const dailyActualsFingerprint = JSON.stringify(dailyActualsSnapshot);
+  const [nutritionOrient, setNutritionOrient] =
+    useState<NutritionOrientState>({ phase: "loading" });
 
   useEffect(() => {
     let mounted = true;
@@ -138,6 +174,74 @@ export function ProgressPage({
     };
   }, [q, duration]);
 
+  useEffect(() => {
+    if (personalProgram === null) return;
+
+    let cancelled = false;
+    setNutritionOrient({ phase: "loading" });
+
+    void (async () => {
+      try {
+        const actuals = dailyActualsSnapshot;
+        const entries = Object.values(actuals);
+        if (entries.length === 0) {
+          if (!cancelled) setNutritionOrient({ phase: "sparse" });
+          return;
+        }
+
+        const dayEstimates: { min: number; max: number }[] = [];
+
+        for (const entry of entries) {
+          const meal = mealTextFromNotes(entry.notes);
+          if (!meal.trim()) continue;
+          const est = await estimateCalories(meal);
+          if (
+            est.caloriesMin <= 0 &&
+            est.caloriesMax <= 0 &&
+            est.foundProducts.length === 0
+          ) {
+            continue;
+          }
+          dayEstimates.push({
+            min: est.caloriesMin,
+            max: est.caloriesMax,
+          });
+        }
+
+        if (cancelled) return;
+
+        if (dayEstimates.length < 2) {
+          setNutritionOrient({ phase: "sparse" });
+          return;
+        }
+
+        const n = dayEstimates.length;
+        const avgMin = Math.round(
+          dayEstimates.reduce((s, e) => s + e.min, 0) / n,
+        );
+        const avgMax = Math.round(
+          dayEstimates.reduce((s, e) => s + e.max, 0) / n,
+        );
+        const mid = (avgMin + avgMax) / 2;
+        const tone =
+          mid >= ORIENT_HIGH_MIDPOINT ? ("high" as const) : ("normal" as const);
+
+        setNutritionOrient({
+          phase: "ready",
+          avgMin,
+          avgMax,
+          tone,
+        });
+      } catch {
+        if (!cancelled) setNutritionOrient({ phase: "sparse" });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [personalProgram, dailyActualsFingerprint]);
+
   if (personalProgram === null) {
     return (
       <div className="p-6 text-sm text-slate-500">
@@ -147,7 +251,7 @@ export function ProgressPage({
   }
 
   const totalDays = personalProgram.totalDays || personalProgram.days.length;
-  const dailyActuals = readDailyActuals();
+  const dailyActuals = dailyActualsSnapshot;
   const actualEntries = Object.values(dailyActuals);
   const completed = Object.keys(dailyActuals).length;
   const skipped = 0;
@@ -206,6 +310,38 @@ export function ProgressPage({
           <dd>{completed}</dd>
         </div>
       </dl>
+      <section className="space-y-3 rounded-lg border border-emerald-200/80 bg-emerald-50/40 p-4 text-sm leading-relaxed text-slate-800">
+        <h2 className="text-sm font-semibold text-slate-900">
+          Ориентир по питанию
+        </h2>
+        {nutritionOrient.phase === "loading" ? (
+          <p className="text-slate-600">
+            Подбираем мягкий ориентир по вашим записям…
+          </p>
+        ) : nutritionOrient.phase === "sparse" ? (
+          <p className="text-slate-700">
+            Пока мало данных для оценки. Ориентир появится после нескольких
+            заполненных дней.
+          </p>
+        ) : (
+          <>
+            <p className="text-slate-700">
+              По текстам приёмов пищи получается примерный диапазон в среднем за
+              день:{" "}
+              <span className="font-medium text-slate-900">
+                {nutritionOrient.avgMin}–{nutritionOrient.avgMax} ккал
+              </span>
+              . Это не точный подсчёт и не медицинская норма — только мягкий
+              ориентир.
+            </p>
+            <p className="text-slate-700">
+              {nutritionOrient.tone === "high"
+                ? "В некоторые дни питание было плотнее обычного. Это не ошибка — просто ориентир, где можно мягко скорректировать порции."
+                : "В целом питание выглядит близко к спокойному рабочему ритму."}
+            </p>
+          </>
+        )}
+      </section>
       <section className="space-y-3 rounded-lg border border-slate-200 bg-white p-4 text-sm">
         <h2 className="text-sm font-semibold text-slate-900">
           Как менялось питание по дням

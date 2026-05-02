@@ -10,7 +10,6 @@ export function Header({ isOnline, materialsVersion }: HeaderProps) {
         <span className="text-lg font-semibold text-slate-900">
           Твой личный нутрициолог
         </span>
-        <span className="text-xs text-slate-500">MVP · каркас</span>
       </div>
       <div className="flex items-center gap-3 text-sm">
         <span className="text-slate-500">Материалы</span>
