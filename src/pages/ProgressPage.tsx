@@ -8,16 +8,30 @@ import {
   type PersonalProgram,
 } from "../modules/programBuilder";
 import { estimateCalories } from "../modules/calories/calorieEstimator";
+import {
+  calendarDayIndexFromStartedAt,
+  dateOnlyFromIsoDate,
+} from "../modules/support/calendarPath";
 import type { PageProps } from "./pageProps";
 
 const DAILY_ACTUALS_STORAGE_KEY = "nutrition.dailyActuals";
 const PROGRAM_CONFIG_STORAGE_KEY = "nutrition.programConfig";
+const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
 
 type DailyActual = {
   deviation: "same" | "less" | "more";
   notes: string;
   caloriesDelta: number;
   completedAt: string;
+};
+
+type CalendarRhythmStatus = "done" | "pause" | "today";
+
+type CalendarRhythmItem = {
+  dateIso: string;
+  labelTop: string;
+  labelBottom: string;
+  status: CalendarRhythmStatus;
 };
 
 function readProgramDuration(): 7 | 14 | 30 {
@@ -113,6 +127,156 @@ function readDailyActuals(): Record<string, DailyActual> {
   } catch {
     return {};
   }
+}
+
+function readProgramStartedAtFromSession(): string | null {
+  try {
+    const raw = localStorage.getItem(PROGRAM_SESSION_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    const p = parsed as { startedAt?: unknown };
+    return typeof p.startedAt === "string" && p.startedAt.trim().length > 0
+      ? p.startedAt
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function localDateIso(now: Date): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function addDaysIso(isoDate: string, days: number): string | null {
+  const base = dateOnlyFromIsoDate(isoDate);
+  if (!base) return null;
+  const next = new Date(base.getTime() + days * 24 * 60 * 60 * 1000);
+  return localDateIso(next);
+}
+
+function formatDayMonthRu(isoDate: string): string {
+  const dt = dateOnlyFromIsoDate(isoDate);
+  if (!dt) return isoDate;
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+  }).format(dt);
+}
+
+function completionDateIsoFromCompletedAt(completedAt: string): string | null {
+  const parsed = new Date(completedAt);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return localDateIso(parsed);
+}
+
+function buildCalendarRhythmItems(params: {
+  startedAt: string;
+  totalDays: number;
+  completedDayNumbers: Set<number>;
+  dailyActuals: Record<string, DailyActual>;
+  now?: Date;
+}): CalendarRhythmItem[] {
+  const now = params.now ?? new Date();
+  const calendarDayIndex = calendarDayIndexFromStartedAt(params.startedAt, now);
+  const todayIso = localDateIso(now);
+  const todayLabel = `Сегодня, ${formatDayMonthRu(todayIso)}`;
+
+  const completedDaysCount = params.completedDayNumbers.size;
+  const nextActionDay = Math.min(completedDaysCount + 1, params.totalDays);
+
+  if (completedDaysCount === 0) {
+    return [
+      {
+        dateIso: todayIso,
+        status: "today",
+        labelTop: `${todayLabel} · День 1`,
+        labelBottom: "Начинаем спокойно — Олеся рядом",
+      },
+    ];
+  }
+
+  const completedByDate = new Map<string, number[]>();
+  for (const [dayStr, entry] of Object.entries(params.dailyActuals)) {
+    const dayNumber = parseInt(dayStr, 10);
+    if (!Number.isFinite(dayNumber) || dayNumber <= 0) continue;
+    const dateIso = completionDateIsoFromCompletedAt(entry.completedAt);
+    if (!dateIso) continue;
+    const list = completedByDate.get(dateIso) ?? [];
+    list.push(dayNumber);
+    completedByDate.set(dateIso, list);
+  }
+  for (const list of completedByDate.values()) {
+    list.sort((a, b) => a - b);
+  }
+
+  const items: CalendarRhythmItem[] = [];
+  for (let i = 0; i < calendarDayIndex; i += 1) {
+    const dateIso = addDaysIso(params.startedAt, i);
+    if (!dateIso) break;
+
+    const isToday = dateIso === todayIso;
+    const dateLabel = formatDayMonthRu(dateIso);
+
+    if (isToday) {
+      const completedToday = completedByDate.get(dateIso);
+      if (completedToday && completedToday.length > 0) {
+        const dayPart =
+          completedToday.length === 1
+            ? `День ${completedToday[0]}`
+            : `Дни ${completedToday.join(", ")}`;
+        items.push({
+          dateIso,
+          status: "today",
+          labelTop: `${todayLabel} · ${dayPart}`,
+          labelBottom: "Получилось",
+        });
+        continue;
+      }
+      items.push({
+        dateIso,
+        status: "today",
+        labelTop: `${todayLabel} · День ${nextActionDay}`,
+        labelBottom: "Продолжаем спокойно",
+      });
+      continue;
+    }
+
+    const completedDays = completedByDate.get(dateIso);
+    if (completedDays && completedDays.length > 0) {
+      const dayPart =
+        completedDays.length === 1
+          ? `День ${completedDays[0]}`
+          : `Дни ${completedDays.join(", ")}`;
+      items.push({
+        dateIso,
+        status: "done",
+        labelTop: `${dateLabel} · ${dayPart}`,
+        labelBottom: "Получилось",
+      });
+      continue;
+    }
+
+    items.push({
+      dateIso,
+      status: "pause",
+      labelTop: dateLabel,
+      labelBottom: "Пауза — это не сброс",
+    });
+  }
+
+  return items;
+}
+
+function countCompletionStreakFromStart(dailyActuals: Record<string, DailyActual>): number {
+  let streak = 0;
+  while (dailyActuals[String(streak + 1)]) {
+    streak += 1;
+  }
+  return streak;
 }
 
 /** Тексты приёмов пищи из заметок дня (формат DayPage) или весь текст, если меток нет. */
@@ -253,9 +417,13 @@ export function ProgressPage({
   const totalDays = personalProgram.totalDays || personalProgram.days.length;
   const dailyActuals = dailyActualsSnapshot;
   const actualEntries = Object.values(dailyActuals);
+  const completedDayNumbers = new Set(
+    Object.keys(dailyActuals)
+      .map((k) => parseInt(k, 10))
+      .filter((n) => Number.isFinite(n) && n > 0),
+  );
   const completed = Object.keys(dailyActuals).length;
-  const skipped = 0;
-  const hasSkips = skipped > 0;
+  const streak = countCompletionStreakFromStart(dailyActuals);
   const progressPercent = totalDays
     ? Math.round((completed / totalDays) * 100)
     : 0;
@@ -289,6 +457,23 @@ export function ProgressPage({
         ? "Есть недобор по факту. Важно не оставаться голодным и не пропускать основные приёмы пищи."
         : "В целом питание близко к плану.";
 
+  const startedAt = readProgramStartedAtFromSession();
+  const calendarDayIndex =
+    startedAt && startedAt.trim().length > 0
+      ? calendarDayIndexFromStartedAt(startedAt)
+      : null;
+  const pauses =
+    calendarDayIndex && completed > 0 ? Math.max(0, calendarDayIndex - completed) : 0;
+  const rhythmItems =
+    startedAt && startedAt.trim().length > 0
+      ? buildCalendarRhythmItems({
+          startedAt,
+          totalDays,
+          completedDayNumbers,
+          dailyActuals,
+        })
+      : [];
+
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <h1 className="text-xl font-semibold">Прогресс</h1>
@@ -301,15 +486,61 @@ export function ProgressPage({
           <dt className="text-slate-500">Выполнено дней</dt>
           <dd>{completed}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-slate-500">Пропущено дней</dt>
-          <dd>{skipped}</dd>
-        </div>
+        {completed > 0 && pauses > 0 ? (
+          <div className="flex justify-between">
+            <dt className="text-slate-500">Паузы</dt>
+            <dd>{pauses}</dd>
+          </div>
+        ) : null}
         <div className="flex justify-between border-t border-slate-100 pt-2">
           <dt className="text-slate-500">Серия выполнений</dt>
-          <dd>{completed}</dd>
+          <dd>{streak}</dd>
         </div>
       </dl>
+      <section className="space-y-3 rounded-lg border border-teal-100 bg-gradient-to-b from-amber-50/60 to-teal-50/40 p-4 text-sm leading-relaxed text-slate-800">
+        <div className="space-y-1">
+          <h2 className="text-sm font-semibold text-slate-900">Где мы сейчас</h2>
+          <p className="text-xs text-slate-600">
+            Это не отчёт и не оценка — просто мягкая точка опоры на сегодня.
+          </p>
+        </div>
+        {startedAt === null ? (
+          <p className="text-slate-700">
+            Ритм появится после старта программы.
+          </p>
+        ) : rhythmItems.length === 0 ? (
+          <p className="text-slate-700">Пока нет данных, чтобы показать ритм.</p>
+        ) : (
+          <div className="space-y-2">
+            {rhythmItems.map((item) => {
+              const styles =
+                item.status === "done"
+                  ? "bg-emerald-50/80 ring-1 ring-emerald-100 text-emerald-950"
+                  : item.status === "today"
+                    ? "bg-teal-50/80 ring-1 ring-teal-100 text-teal-950"
+                    : "bg-amber-50/80 ring-1 ring-amber-100 text-amber-950";
+              const dot =
+                item.status === "done"
+                  ? "bg-emerald-400"
+                  : item.status === "today"
+                    ? "bg-teal-400"
+                    : "bg-amber-300";
+              return (
+                <div
+                  key={item.dateIso}
+                  className={`flex items-start gap-3 rounded-lg px-3 py-2 ${styles}`}
+                >
+                  <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${dot}`} />
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{item.labelTop}</div>
+                    <div className="text-xs text-slate-700">{item.labelBottom}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
       <section className="space-y-3 rounded-lg border border-emerald-200/80 bg-emerald-50/40 p-4 text-sm leading-relaxed text-slate-800">
         <h2 className="text-sm font-semibold text-slate-900">
           Ориентир по питанию
@@ -413,10 +644,10 @@ export function ProgressPage({
         </p>
         <p className="rounded-md bg-slate-50 px-3 py-2 text-slate-700">{nutritionSummary}</p>
       </section>
-      {hasSkips ? (
+      {completed > 0 && pauses > 0 ? (
         <p className="rounded-lg border border-amber-100 bg-amber-50/80 p-4 text-sm leading-relaxed text-amber-950">
-          Пропуски случаются — главное, что вы снова в программе. Один шаг
-          сегодня уже возвращает ритм без давления и вины.
+          Паузы случаются — это не сброс. Один спокойный шаг сегодня уже возвращает
+          ритм без давления и вины.
         </p>
       ) : null}
     </div>

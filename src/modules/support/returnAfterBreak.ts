@@ -1,5 +1,6 @@
 import behaviorScenarios from "../../data/seed/behavior-scenarios.json";
 import { countCompletedDaysFromDailyActuals } from "./completedDays";
+import { calendarDayIndexFromStartedAt } from "./calendarPath";
 
 const PROGRAM_SESSION_STORAGE_KEY = "nutrition.programSession";
 const RETURN_AFTER_BREAK_SHOWN_AT_KEY = "nutrition.support.returnAfterBreak.shownAt";
@@ -22,22 +23,6 @@ function readProgramSessionSnapshot(): ProgramSessionSnapshot {
   } catch {
     return {};
   }
-}
-
-function toDateOnly(value: string): Date | null {
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
-}
-
-function calculateCalendarDay(startedAt: string): number {
-  const startDate = toDateOnly(startedAt);
-  if (!startDate) return 1;
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const diffMs = today.getTime() - startDate.getTime();
-  const dayIndex = Math.floor(diffMs / (24 * 60 * 60 * 1000)) + 1;
-  return Math.max(1, dayIndex);
 }
 
 function wasShownToday(): boolean {
@@ -68,7 +53,9 @@ export function consumeReturnAfterBreakMessage(): string | null {
     const hasStartedAt = Boolean(session.startedAt && session.startedAt.trim().length > 0);
     if (!DEV_FORCE_BREAK && !hasStartedAt) return null;
 
-    const calendarDay = hasStartedAt ? calculateCalendarDay(session.startedAt!) : 1;
+    const calendarDay = hasStartedAt
+      ? calendarDayIndexFromStartedAt(session.startedAt!)
+      : 1;
     const hasGap = DEV_FORCE_BREAK ? true : completedDays < calendarDay;
     if (!hasGap) return null;
 

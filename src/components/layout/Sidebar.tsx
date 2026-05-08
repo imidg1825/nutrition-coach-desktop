@@ -26,8 +26,16 @@ type SidebarProps = {
 
 export function Sidebar({ current, onSelect }: SidebarProps) {
   return (
-    <aside className="flex w-52 shrink-0 flex-col border-r border-slate-200 bg-surface-card py-3">
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-2">
+    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200/70 bg-white/70 py-4 backdrop-blur-[2px]">
+      <div className="px-4 pb-3">
+        <div className="rounded-2xl bg-gradient-to-b from-amber-50/70 to-teal-50/40 px-3 py-3 ring-1 ring-teal-100/60">
+          <div className="text-xs font-medium text-slate-600">Навигация</div>
+          <div className="mt-0.5 text-sm font-semibold text-slate-900">
+            Мягкий ритм, без давления
+          </div>
+        </div>
+      </div>
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3">
         {NAV_ITEMS.map((item) => {
           const active = item.id === current;
           return (
@@ -37,8 +45,8 @@ export function Sidebar({ current, onSelect }: SidebarProps) {
               onClick={() => onSelect(item.id)}
               className={
                 active
-                  ? "rounded-md bg-accent px-3 py-2 text-left text-sm font-medium text-white"
-                  : "rounded-md px-3 py-2 text-left text-sm text-slate-700 hover:bg-surface-muted"
+                  ? "rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-3 py-2 text-left text-sm font-medium text-white shadow-sm"
+                  : "rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-surface-muted"
               }
             >
               {item.label}

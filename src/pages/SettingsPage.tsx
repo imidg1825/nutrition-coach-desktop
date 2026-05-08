@@ -28,6 +28,17 @@ export function SettingsPage({ mock, navigate }: PageProps) {
         <li>
           <button
             type="button"
+            onClick={() => {
+              try {
+                localStorage.removeItem("nutrition.dailyActuals");
+                localStorage.removeItem("nutrition.support.returnAfterBreak.shownAt");
+                setDevMessage("Прогресс сброшен. Начинаем спокойно — Олеся рядом.");
+              } catch {
+                setDevMessage(
+                  "Не получилось сбросить прогресс на этом устройстве. Попробуйте перезапустить приложение.",
+                );
+              }
+            }}
             className="w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-left text-sm hover:bg-surface-muted"
           >
             Сбросить прогресс
@@ -42,18 +53,24 @@ export function SettingsPage({ mock, navigate }: PageProps) {
             Проверить обновления
           </button>
         </li>
-        <li>
-          <button
-            type="button"
-            onClick={() => {
-              localStorage.removeItem("nutrition.dailyActuals");
-              setDevMessage("Выполненные дни очищены");
-            }}
-            className="w-full rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900 hover:bg-amber-100"
-          >
-            Очистить выполненные дни
-          </button>
-        </li>
+        {import.meta.env.DEV ? (
+          <li>
+            <button
+              type="button"
+              onClick={() => {
+                try {
+                  localStorage.removeItem("nutrition.dailyActuals");
+                  setDevMessage("DEV: выполненные дни очищены");
+                } catch {
+                  setDevMessage("DEV: не удалось очистить выполненные дни");
+                }
+              }}
+              className="w-full rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900 hover:bg-amber-100"
+            >
+              DEV: очистить выполненные дни
+            </button>
+          </li>
+        ) : null}
       </ul>
       {devMessage ? (
         <p className="rounded-md border border-emerald-100 bg-emerald-50 px-3 py-2 text-sm text-emerald-900">

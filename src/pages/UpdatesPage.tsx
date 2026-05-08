@@ -1,6 +1,6 @@
 import type { PageProps } from "./pageProps";
 
-export function UpdatesPage({ mock }: PageProps) {
+export function UpdatesPage({ mock, isOnline }: PageProps & { isOnline: boolean }) {
   const { contentVersion, changelog } = mock.content;
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -16,7 +16,7 @@ export function UpdatesPage({ mock }: PageProps) {
         </div>
         <div className="flex justify-between">
           <dt className="text-slate-500">Статус</dt>
-          <dd>{mock.isOnline ? "Онлайн" : "Офлайн"}</dd>
+          <dd>{isOnline ? "Онлайн" : "Офлайн"}</dd>
         </div>
       </dl>
       <button

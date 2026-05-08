@@ -24,36 +24,16 @@ export async function getPersonalProgram(
 ): Promise<PersonalProgram> {
   const cached = loadPersonalProgram();
   if (cached) {
-    if (import.meta.env.DEV) {
-      console.info("[getPersonalProgram] cache hit");
-    }
     return cached;
-  }
-
-  if (import.meta.env.DEV) {
-    console.info("[getPersonalProgram] cache miss");
   }
 
   const baseProgram = buildPersonalProgram(questionnaire, options);
 
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim();
-  if (import.meta.env.DEV) {
-    console.info("[getPersonalProgram] hasApiKey:", Boolean(apiKey));
-  }
 
   if (!apiKey) {
-    if (import.meta.env.DEV) {
-      console.info(
-        "[getPersonalProgram] save nutrition.personalProgram (baseProgram, no AI)",
-      );
-      console.info("[getPersonalProgram] called adaptProgramWithAI:", false);
-    }
     savePersonalProgram(baseProgram);
     return baseProgram;
-  }
-
-  if (import.meta.env.DEV) {
-    console.info("[getPersonalProgram] called adaptProgramWithAI:", true);
   }
 
   try {
@@ -62,15 +42,6 @@ export async function getPersonalProgram(
       questionnaire,
       apiKey,
     );
-    if (import.meta.env.DEV) {
-      console.info(
-        "[getPersonalProgram] adapted === baseProgram:",
-        adapted === baseProgram,
-      );
-      console.info(
-        "[getPersonalProgram] save nutrition.personalProgram (adapted)",
-      );
-    }
     savePersonalProgram(adapted);
     const explanation = await explainProgramWithAI(
       adapted,
@@ -82,11 +53,6 @@ export async function getPersonalProgram(
     }
     return adapted;
   } catch {
-    if (import.meta.env.DEV) {
-      console.info(
-        "[getPersonalProgram] save nutrition.personalProgram (baseProgram, AI error)",
-      );
-    }
     savePersonalProgram(baseProgram);
     const explanation = await explainProgramWithAI(
       baseProgram,

@@ -478,6 +478,7 @@ export function DayPage({
   const softReminder = softReminderFromHour(new Date().getHours());
 
   const mealFieldsLower = [
+    dayContext,
     actualMeals.breakfast,
     actualMeals.lunch,
     actualMeals.snacks,
@@ -485,7 +486,12 @@ export function DayPage({
   ]
     .join(" ")
     .toLowerCase();
-  const liveSupportBingeKeywords = ["срыв", "переел"] as const;
+  const liveSupportBingeKeywords = [
+    "срыв",
+    "переел",
+    "сорвался",
+    "сорвалась",
+  ] as const;
   const liveSupportSkipKeywords = [
     "не ел",
     "не ела",

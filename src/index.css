@@ -11,3 +11,187 @@ body,
 body {
   @apply bg-surface text-slate-800 antialiased;
 }
+
+@layer base {
+  ::selection {
+    background: rgba(99, 199, 214, 0.28);
+  }
+
+  a {
+    @apply underline-offset-4;
+  }
+
+  input,
+  textarea,
+  select {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none ring-accent/25 focus:ring;
+  }
+
+  textarea {
+    @apply leading-relaxed;
+  }
+}
+
+@layer utilities {
+  /* Ensure @apply can always resolve these shadows (dev-safe). */
+  .shadow-card {
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.06);
+  }
+
+  .shadow-soft {
+    box-shadow: 0 10px 30px rgba(16, 24, 40, 0.06);
+  }
+}
+
+@layer components {
+  /* Global botanical / tropical decor layer (never blocks interactions). */
+  .app-decor {
+    position: relative;
+    isolation: isolate;
+  }
+  .app-decor::before,
+  .app-decor::after {
+    content: "";
+    position: absolute;
+    inset: -24px;
+    pointer-events: none;
+    z-index: 0;
+    background-repeat: no-repeat;
+    opacity: 1;
+  }
+
+  /* Botanical SVG corner elements */
+  .app-leaf {
+    position: absolute;
+    z-index: 0;
+    pointer-events: none;
+    width: 220px;
+    height: 220px;
+    opacity: 0.44;
+    filter: drop-shadow(0 10px 24px rgba(16, 24, 40, 0.06));
+  }
+
+  .app-leaf--tl {
+    top: -44px;
+    left: -46px;
+    transform: rotate(-10deg);
+  }
+  .app-leaf--tr {
+    top: -52px;
+    right: -52px;
+    transform: rotate(18deg) scaleX(-1);
+  }
+  .app-leaf--bl {
+    bottom: -56px;
+    left: -52px;
+    transform: rotate(8deg) scaleY(-1);
+  }
+  .app-leaf--br {
+    bottom: -60px;
+    right: -52px;
+    transform: rotate(-12deg) scale(-1);
+  }
+
+  .app-decor--hero .app-leaf {
+    opacity: 0.56;
+  }
+  .app-decor--base .app-leaf {
+    opacity: 0.40;
+  }
+  .app-decor--quiet .app-leaf {
+    opacity: 0.18;
+    filter: blur(0.4px);
+  }
+
+  /* Base decor: subtle, safe for reading. */
+  .app-decor--base::before {
+    background-image:
+      radial-gradient(closest-side, rgba(120, 199, 184, 0.10), rgba(120, 199, 184, 0) 70%),
+      radial-gradient(closest-side, rgba(99, 199, 214, 0.08), rgba(99, 199, 214, 0) 68%);
+    background-position: -60px -40px, 105% 20%;
+    background-size: 260px 260px, 220px 220px;
+    filter: blur(0.5px);
+  }
+  .app-decor--base::after {
+    background-image:
+      radial-gradient(closest-side, rgba(244, 167, 154, 0.08), rgba(244, 167, 154, 0) 70%),
+      radial-gradient(closest-side, rgba(233, 221, 199, 0.24), rgba(233, 221, 199, 0) 72%);
+    background-position: 10% 105%, 100% 105%;
+    background-size: 240px 240px, 340px 340px;
+  }
+
+  /* Hero decor: slightly richer (Start/About). */
+  .app-decor--hero::before {
+    background-image:
+      radial-gradient(closest-side, rgba(120, 199, 184, 0.14), rgba(120, 199, 184, 0) 72%),
+      radial-gradient(closest-side, rgba(99, 199, 214, 0.12), rgba(99, 199, 214, 0) 70%),
+      radial-gradient(closest-side, rgba(233, 221, 199, 0.30), rgba(233, 221, 199, 0) 72%);
+    background-position: -70px -60px, 110% 0%, 30% 110%;
+    background-size: 340px 340px, 300px 300px, 420px 420px;
+  }
+  .app-decor--hero::after {
+    background-image:
+      radial-gradient(closest-side, rgba(244, 167, 154, 0.10), rgba(244, 167, 154, 0) 72%),
+      radial-gradient(closest-side, rgba(111, 191, 122, 0.08), rgba(111, 191, 122, 0) 72%);
+    background-position: 105% 95%, 0% 90%;
+    background-size: 320px 320px, 240px 240px;
+  }
+
+  /* Quiet decor: minimal for forms/settings. */
+  .app-decor--quiet::before {
+    background-image:
+      radial-gradient(closest-side, rgba(233, 221, 199, 0.16), rgba(233, 221, 199, 0) 72%);
+    background-position: 100% -20px;
+    background-size: 320px 320px;
+  }
+  .app-decor--quiet::after {
+    background-image:
+      radial-gradient(closest-side, rgba(120, 199, 184, 0.06), rgba(120, 199, 184, 0) 72%);
+    background-position: -40px 110%;
+    background-size: 260px 260px;
+  }
+
+  .ui-card {
+    @apply rounded-2xl border border-slate-200/70 bg-white shadow-card;
+  }
+
+  .ui-card-soft {
+    @apply rounded-2xl border border-slate-200/60 bg-white/80 shadow-soft backdrop-blur-[2px];
+  }
+
+  .ui-panel {
+    @apply rounded-2xl border border-slate-200/70 bg-surface-card shadow-card;
+  }
+
+  .ui-badge {
+    @apply inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium;
+  }
+
+  .ui-badge-mint {
+    @apply bg-emerald-50 text-emerald-900 ring-1 ring-emerald-100;
+  }
+
+  .ui-badge-sand {
+    @apply bg-amber-50 text-amber-950 ring-1 ring-amber-100;
+  }
+
+  .ui-badge-aqua {
+    @apply bg-teal-50 text-teal-950 ring-1 ring-teal-100;
+  }
+
+  .ui-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-colors;
+  }
+
+  .ui-btn-primary {
+    @apply ui-btn bg-accent text-white shadow-sm hover:bg-accent-hover;
+  }
+
+  .ui-btn-secondary {
+    @apply ui-btn border border-slate-200 bg-white text-slate-800 hover:bg-surface-muted;
+  }
+
+  .ui-btn-ghost {
+    @apply ui-btn text-slate-700 hover:bg-surface-muted;
+  }
+}

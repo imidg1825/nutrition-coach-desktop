@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { AppLayout } from "./components/layout/AppLayout";
 import { mockAppData } from "./mocks/mockAppData";
 import {
@@ -164,6 +164,18 @@ export default function App() {
       : "start",
   );
   const mock = mockAppData;
+  const [isOnline, setIsOnline] = useState<boolean>(() => navigator.onLine);
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true);
+    const onOffline = () => setIsOnline(false);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+    };
+  }, []);
   const navigate = (nextScreen: Screen) => {
     setScreen(nextScreen);
     setProgramSession((prev) => {
@@ -296,7 +308,7 @@ export default function App() {
       body = <FinishPage {...pageProps} />;
       break;
     case "updates":
-      body = <UpdatesPage {...pageProps} />;
+      body = <UpdatesPage {...pageProps} isOnline={isOnline} />;
       break;
     case "settings":
       body = <SettingsPage {...pageProps} />;
@@ -309,7 +321,7 @@ export default function App() {
     <AppLayout
       screen={screen}
       onNavigate={navigate}
-      isOnline={mock.isOnline}
+      isOnline={isOnline}
       materialsVersion={mock.content.contentVersion.version}
     >
       {body}
