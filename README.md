@@ -54,12 +54,6 @@ npm run build
 npm run tauri build
 ```
 
-## Где лежит установщик Windows (exe)
-
-После успешной сборки под Windows артефакты NSIS обычно находятся здесь:
-
-`src-tauri/target/release/bundle/nsis/`
-
 ## Как запустить тестовую сборку
 
 Готовые файлы доступны в GitHub Releases:
