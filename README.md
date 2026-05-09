@@ -57,6 +57,32 @@ npm run tauri build
 
 `src-tauri/target/release/bundle/nsis/`
 
+## Как запустить тестовую сборку
+
+Для локальной проверки после сборки:
+
+1. Откройте папку:
+   `src-tauri/target/release/bundle/nsis/`
+
+2. Запустите установщик:
+   `nutrition-desktop-app_0.1.0_x64-setup.exe`
+
+Для пересылки тестовой сборки можно использовать папку:
+
+`release-share/`
+
+В ней может лежать файл с временным расширением `.exe1`, например:
+
+`Твой-личный-нутрициолог-first-release.exe1`
+
+Получателю нужно переименовать файл:
+
+`.exe1` → `.exe`
+
+и затем запустить установщик.
+
+Windows может показать предупреждение, потому что приложение пока без цифровой подписи.
+
 ## Ограничения
 
 - не диагнозы
@@ -67,3 +93,8 @@ npm run tauri build
 ## Статус
 
 Release Candidate / first desktop build.
+
+## Разработчик
+
+Иван Мазницын  
+Telegram: [@Ivan_Maznitsin](https://t.me/Ivan_Maznitsin)
