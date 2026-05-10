@@ -24,3 +24,4 @@ dist-ssr
 *.sln
 *.sw?
 release-share/
+AGENTS.md
