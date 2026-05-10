@@ -554,18 +554,28 @@ export function DayPage({
           {returnAfterBreakMessage}
         </div>
       ) : null}
-      <section className="rounded-lg border border-slate-200 bg-white p-4">
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-sm leading-snug">
-          <dt className="font-medium text-slate-600">Настрой дня:</dt>
-          <dd className="min-w-0 text-slate-800">{currentProgramDay.mood}</dd>
-          <dt className="font-medium text-slate-600">Фокус дня:</dt>
-          <dd className="min-w-0 text-slate-800">{displayDay.focus}</dd>
-          <dt className="font-medium text-slate-600">Привычка дня:</dt>
-          <dd className="min-w-0 text-slate-800">{currentProgramDay.habit}</dd>
-          <dt className="font-medium text-slate-600">Задание дня:</dt>
-          <dd className="min-w-0 text-slate-800">{displayDay.task}</dd>
-          <dt className="font-medium text-slate-600">Поддержка дня:</dt>
-          <dd className="min-w-0 text-slate-800">{displayDay.supportMessage}</dd>
+      <section className="rounded-lg border border-slate-200 bg-white p-3.5 sm:p-4">
+        <dl className="flex flex-col gap-4 text-sm leading-relaxed md:grid md:grid-cols-[auto_minmax(0,1fr)] md:gap-x-4 md:gap-y-3 md:leading-snug">
+          <div className="flex flex-col gap-1.5 md:contents">
+            <dt className="shrink-0 font-medium text-slate-600">Настрой дня:</dt>
+            <dd className="min-w-0 text-slate-800">{currentProgramDay.mood}</dd>
+          </div>
+          <div className="flex flex-col gap-1.5 md:contents">
+            <dt className="shrink-0 font-medium text-slate-600">Фокус дня:</dt>
+            <dd className="min-w-0 text-slate-800">{displayDay.focus}</dd>
+          </div>
+          <div className="flex flex-col gap-1.5 md:contents">
+            <dt className="shrink-0 font-medium text-slate-600">Привычка дня:</dt>
+            <dd className="min-w-0 text-slate-800">{currentProgramDay.habit}</dd>
+          </div>
+          <div className="flex flex-col gap-1.5 md:contents">
+            <dt className="shrink-0 font-medium text-slate-600">Задание дня:</dt>
+            <dd className="min-w-0 text-slate-800">{displayDay.task}</dd>
+          </div>
+          <div className="flex flex-col gap-1.5 md:contents">
+            <dt className="shrink-0 font-medium text-slate-600">Поддержка дня:</dt>
+            <dd className="min-w-0 text-slate-800">{displayDay.supportMessage}</dd>
+          </div>
         </dl>
       </section>
       <section className="rounded-lg border border-violet-200/80 bg-violet-100/60 px-5 py-4">

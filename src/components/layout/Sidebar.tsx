@@ -1,8 +1,8 @@
 import type { Screen } from "../../types";
 
-type NavItem = { id: Screen; label: string };
+export type NavItem = { id: Screen; label: string };
 
-const NAV_ITEMS: NavItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   { id: "start", label: "Старт" },
   { id: "about", label: "О нутрициологе" },
   { id: "questionnaire", label: "Анкета" },
@@ -26,7 +26,7 @@ type SidebarProps = {
 
 export function Sidebar({ current, onSelect }: SidebarProps) {
   return (
-    <aside className="flex w-56 shrink-0 flex-col border-r border-slate-200/70 bg-white/70 py-4 backdrop-blur-[2px]">
+    <aside className="hidden w-56 shrink-0 flex-col border-r border-slate-200/70 bg-white/70 py-4 backdrop-blur-[2px] md:flex">
       <div className="px-4 pb-3">
         <div className="rounded-2xl bg-gradient-to-b from-amber-50/70 to-teal-50/40 px-3 py-3 ring-1 ring-teal-100/60">
           <div className="text-xs font-medium text-slate-600">Навигация</div>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Screen } from "../../types";
 import { Header } from "./Header";
+import { MobileNav } from "./MobileNav";
 import { Sidebar } from "./Sidebar";
 
 type AppLayoutProps = {
@@ -30,7 +31,7 @@ export function AppLayout({
       <Header isOnline={isOnline} materialsVersion={materialsVersion} />
       <div className="flex min-h-0 flex-1">
         <Sidebar current={screen} onSelect={onNavigate} />
-        <main className="min-h-0 flex-1 overflow-y-auto p-6">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 pb-20 md:p-6">
           <div className={`app-decor app-decor--${decorVariant}`}>
             <svg
               className="app-leaf app-leaf--tl"
@@ -176,6 +177,7 @@ export function AppLayout({
           </div>
         </main>
       </div>
+      <MobileNav current={screen} onSelect={onNavigate} />
     </div>
   );
 }

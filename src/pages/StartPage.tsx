@@ -97,7 +97,7 @@ export function StartPage({ mock, navigate }: PageProps) {
             <p className="mt-1 text-sm text-slate-600">
               Можно начать мягко и усилить ритм постепенно.
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid gap-2 sm:grid-cols-3 sm:gap-3">
               {[
                 { value: 7 as ProgramDuration, caption: "Пробный" },
                 { value: 14 as ProgramDuration, caption: "Оптимально" },
@@ -110,38 +110,52 @@ export function StartPage({ mock, navigate }: PageProps) {
                     key={value}
                     type="button"
                     onClick={() => setDuration(value)}
-                    className={`group relative overflow-hidden rounded-2xl border p-4 text-left transition-all ${
+                    className={`group relative rounded-xl border p-3 text-left transition-all sm:rounded-2xl sm:p-5 ${
                       isActive
                         ? "border-teal-200 bg-gradient-to-b from-teal-50 to-emerald-50/60 shadow-sm"
                         : "border-slate-200 bg-white hover:bg-surface-muted"
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="text-2xl font-semibold text-slate-900">
+                      <div className="min-w-0">
+                        <div className="text-xl font-semibold tabular-nums text-slate-900 sm:text-2xl">
                           {value}
                         </div>
-                        <div className="mt-0.5 text-xs font-medium text-slate-500">
+                        <div className="mt-0.5 text-[11px] font-medium text-slate-500 sm:text-xs">
                           дней
                         </div>
                       </div>
-                      {isRecommended ? (
-                        <span className="ui-badge ui-badge-aqua">Рекомендуем</span>
-                      ) : (
+                      {!isRecommended ? (
                         <span
-                          className={`mt-1 inline-block size-3 rounded-full ring-1 ${
+                          className={`mt-0.5 inline-block size-3 shrink-0 rounded-full ring-1 sm:mt-1 ${
                             isActive
                               ? "bg-teal-400 ring-teal-200"
                               : "bg-slate-200 ring-slate-200"
                           }`}
                           aria-hidden
                         />
+                      ) : (
+                        <span className="sr-only">Рекомендуемый формат</span>
                       )}
                     </div>
-                    <div className="mt-3 text-sm font-medium text-slate-800">
+                    {!isRecommended ? (
+                      <div className="hidden min-h-[1.75rem] sm:block" aria-hidden />
+                    ) : (
+                      <div className="mt-2 sm:mt-2">
+                        <p className="border-t border-teal-200/50 pt-2 text-xs font-medium leading-snug text-teal-900 sm:hidden">
+                          Рекомендуем · оптимальный формат для старта
+                        </p>
+                        <div className="hidden min-h-[1.75rem] items-start sm:flex">
+                          <span className="ui-badge ui-badge-aqua inline-flex max-w-full text-xs font-semibold">
+                            Рекомендуем
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="mt-2 text-sm font-medium text-slate-800 sm:mt-3">
                       {caption}
                     </div>
-                    <div className="mt-1 text-xs text-slate-600">
+                    <div className="mt-0.5 text-[11px] text-slate-600 sm:mt-1 sm:text-xs">
                       {isActive ? "Выбрано" : "Можно выбрать"}
                     </div>
                   </button>

@@ -36,9 +36,24 @@ function formatHeaderNow(now: Date): string {
   return `${tod} · ${datePart} · ${timePart}`;
 }
 
+/** Короткая строка для узких экранов */
+function formatHeaderNowCompact(now: Date): string {
+  const datePart = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "short",
+  }).format(now);
+  const timePart = new Intl.DateTimeFormat("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(now);
+  return `${datePart} · ${timePart}`;
+}
+
 export function Header({ isOnline, materialsVersion }: HeaderProps) {
   const [now, setNow] = useState(() => new Date());
   const nowLabel = useMemo(() => formatHeaderNow(now), [now]);
+  const nowLabelCompact = useMemo(() => formatHeaderNowCompact(now), [now]);
 
   useEffect(() => {
     const tick = () => setNow(new Date());
@@ -49,25 +64,28 @@ export function Header({ isOnline, materialsVersion }: HeaderProps) {
   }, []);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-surface-card px-4 shadow-sm">
-      <div className="flex items-baseline gap-2">
-        <span className="text-lg font-semibold text-slate-900">
+    <header className="flex min-h-14 shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-200 bg-surface-card px-3 py-2 shadow-sm sm:gap-x-3 sm:px-4 md:h-14 md:flex-nowrap md:gap-y-0 md:py-0">
+      <div className="min-w-0 flex-1 basis-[min(100%,12rem)] md:basis-auto">
+        <span className="block truncate text-base font-semibold text-slate-900 md:text-lg">
           Твой личный нутрициолог
         </span>
       </div>
-      <div className="flex items-center gap-3 text-sm">
-        <span className="hidden rounded bg-amber-50/70 px-2 py-0.5 text-xs font-medium text-amber-950 ring-1 ring-amber-100 sm:inline">
+      <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-1.5 gap-y-1 text-xs sm:gap-x-2 sm:text-sm md:flex-nowrap md:gap-x-3">
+        <span className="hidden rounded bg-amber-50/70 px-2 py-0.5 font-medium text-amber-950 ring-1 ring-amber-100 md:inline">
           {nowLabel}
         </span>
-        <span className="text-slate-500">Материалы</span>
-        <span className="rounded bg-surface-muted px-2 py-0.5 font-mono text-xs text-slate-700">
+        <span className="max-w-[10rem] truncate rounded bg-amber-50/70 px-1.5 py-0.5 font-medium text-amber-950 ring-1 ring-amber-100 md:hidden">
+          {nowLabelCompact}
+        </span>
+        <span className="hidden text-slate-500 sm:inline">Материалы</span>
+        <span className="max-w-[5rem] truncate rounded bg-surface-muted px-1.5 py-0.5 font-mono text-[11px] text-slate-700 sm:max-w-none sm:px-2 sm:text-xs">
           {materialsVersion}
         </span>
         <span
           className={
             isOnline
-              ? "rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800"
-              : "rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700"
+              ? "shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-800"
+              : "shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700"
           }
         >
           {isOnline ? "Онлайн" : "Офлайн"}
