@@ -60,12 +60,25 @@ npm run tauri build
 
 - [Скачать Windows-установщик](https://github.com/imidg1825/nutrition-coach-desktop/releases/download/v0.1.0/nutrition.exe)
 - [Скачать macOS-сборку Apple Silicon](https://github.com/imidg1825/nutrition-coach-desktop/releases/download/v0.1.0/macos-bundle.2.zip)
+- [Скачать Android APK](https://github.com/imidg1825/nutrition-coach-desktop/releases/download/v0.1.0/nutrition-android-test.apk)
 
 Важно:
 
 — Windows: скачайте `nutrition.exe` и запустите установщик.
 
 — macOS: скачайте `macos-bundle.2.zip`, распакуйте архив, откройте папку `dmg` и запустите `.dmg`.
+
+Android:
+
+[Скачать Android APK](https://github.com/imidg1825/nutrition-coach-desktop/releases/download/v0.1.0/nutrition-android-test.apk)
+
+Инструкция:
+
+скачайте файл `nutrition-android-test.apk` на телефон и откройте его.
+
+Если Android покажет предупреждение «установка из неизвестных источников», разрешите установку для браузера или файлового менеджера.
+
+Это тестовая сборка, не из Google Play.
 
 Для локальной проверки после сборки у себя на машине:
 
