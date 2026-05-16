@@ -1,3 +1,4 @@
+import { normalizeProgramAfterDishPatches } from "./normalizeMeal";
 import type { PersonalProgram } from "./types";
 
 function escapeRegExp(value: string): string {
@@ -51,5 +52,5 @@ export function applyProgramPatch(
     })),
   };
 
-  return next;
+  return normalizeProgramAfterDishPatches(next);
 }

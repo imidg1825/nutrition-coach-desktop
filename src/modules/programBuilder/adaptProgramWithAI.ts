@@ -1,4 +1,7 @@
-import { callOpenRouterChat } from "../ai/openRouterClient";
+import {
+  callOpenRouterChat,
+  OPEN_ROUTER_PROGRAM_TIMEOUT_MS,
+} from "../ai/openRouterClient";
 import type { ClientQuestionnaire } from "../questionnaire";
 import { applyProgramPatch } from "./applyProgramPatch";
 import type { PersonalProgram } from "./types";
@@ -50,6 +53,7 @@ ${JSON.stringify(program)}`;
         { role: "system", content: systemContent },
         { role: "user", content: userContent },
       ],
+      timeoutMs: OPEN_ROUTER_PROGRAM_TIMEOUT_MS,
     });
 
     let parsed: unknown;

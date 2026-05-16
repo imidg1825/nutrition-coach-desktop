@@ -36,6 +36,14 @@ const STEP_TITLES = [
 const MEDICAL_WARNING =
   "Вы указали медицинские особенности. Приложение не ставит диагнозы и не лечит, а помогает с мягкими общими ориентирами по питанию и привычкам. Если есть заболевания, прием лекарств, анализы или выраженные ограничения, важно согласовать питание со специалистом. Для разбора питания и безопасных корректировок вы можете обратиться ко мне, Олесе Богураевой.";
 
+function coerceProgramDurationDays(
+  value: ProgramDurationDays | undefined,
+): ProgramDurationDays {
+  if (value === 21) return 14;
+  if (value === 7 || value === 14 || value === 30) return value;
+  return questionnaireDefaults.goalAndDuration.programDurationDays;
+}
+
 function deepMergeQuestionnaire(
   seed: unknown,
 ): ClientQuestionnaire {
@@ -47,6 +55,9 @@ function deepMergeQuestionnaire(
     goalAndDuration: {
       ...questionnaireDefaults.goalAndDuration,
       ...q.goalAndDuration,
+      programDurationDays: coerceProgramDurationDays(
+        q.goalAndDuration?.programDurationDays,
+      ),
     },
     medicalParticularities: {
       ...questionnaireDefaults.medicalParticularities,
@@ -396,7 +407,7 @@ export function QuestionnairePage({
                   }))
                 }
               >
-                {([7, 14, 21, 30] as const).map((d) => (
+                {([7, 14, 30] as const).map((d) => (
                   <option key={d} value={d}>
                     {d} дней
                   </option>

@@ -20,8 +20,14 @@ import {
 import type { Screen } from "./types";
 import { clearPersonalProgram } from "./modules/programBuilder/programStorage";
 import {
+  readProgramDuration,
+  writeProgramDuration,
+  type ProgramDuration,
+} from "./modules/programConfig";
+import {
   questionnaireDefaults,
   type ClientQuestionnaire,
+  type ProgramDurationDays,
 } from "./modules/questionnaire";
 
 const CLIENT_QUESTIONNAIRE_STORAGE_KEY = "nutrition.clientQuestionnaire";
@@ -111,6 +117,23 @@ function loadClientQuestionnaireFromStorage(): ClientQuestionnaire | null {
   } catch {
     return null;
   }
+}
+
+function toProgramDurationDays(duration: ProgramDuration): ProgramDurationDays {
+  return duration;
+}
+
+function withProgramDuration(
+  questionnaire: ClientQuestionnaire,
+  duration: ProgramDuration,
+): ClientQuestionnaire {
+  return {
+    ...questionnaire,
+    goalAndDuration: {
+      ...questionnaire.goalAndDuration,
+      programDurationDays: toProgramDurationDays(duration),
+    },
+  };
 }
 
 function normalizeClientQuestionnaire(
@@ -214,8 +237,19 @@ export default function App() {
       body = (
         <QuestionnairePage
           {...pageProps}
-          initialQuestionnaire={clientQuestionnaire}
+          initialQuestionnaire={withProgramDuration(
+            clientQuestionnaire ?? questionnaireDefaults,
+            readProgramDuration(),
+          )}
           onQuestionnaireComplete={(questionnaire) => {
+            const duration = questionnaire.goalAndDuration.programDurationDays;
+            if (
+              duration === 7 ||
+              duration === 14 ||
+              duration === 30
+            ) {
+              writeProgramDuration(duration);
+            }
             clearPersonalProgram();
             setClientQuestionnaire(questionnaire);
             localStorage.setItem(
@@ -226,7 +260,7 @@ export default function App() {
               const next: ProgramSession = {
                 ...prev,
                 questionnaireCompleted: true,
-                totalDays: questionnaire.goalAndDuration.programDurationDays || 14,
+                totalDays: duration || readProgramDuration(),
               };
               persistProgramSession(next);
               return next;

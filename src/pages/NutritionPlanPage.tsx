@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   questionnaireDefaults,
   type ClientQuestionnaire,
@@ -8,7 +8,10 @@ import {
   type PersonalProgram,
 } from "../modules/programBuilder";
 import type { ProgramDay, ProgramMeal } from "../modules/programBuilder/types";
-import { loadPersonalProgramExplanation } from "../modules/programBuilder/programStorage";
+import {
+  clearPersonalProgram,
+  loadPersonalProgramExplanation,
+} from "../modules/programBuilder/programStorage";
 import type { PageProps } from "./pageProps";
 
 function orderedMealLines(day: ProgramDay, maxLines = 4): string[] {
@@ -147,21 +150,24 @@ export function NutritionPlanPage(
     null,
   );
   const [isExplanationReady, setIsExplanationReady] = useState(false);
+  const [isRebuilding, setIsRebuilding] = useState(false);
 
   const hasAiKey = Boolean(import.meta.env.VITE_OPENROUTER_API_KEY?.trim());
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    let mounted = true;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     getPersonalProgram(q, { duration }).then((program) => {
-      if (mounted) {
+      if (mountedRef.current) {
         setPersonalProgram(program);
       }
     });
-
-    return () => {
-      mounted = false;
-    };
   }, [q, duration]);
 
   useEffect(() => {
@@ -202,10 +208,38 @@ export function NutritionPlanPage(
     return () => window.clearTimeout(t);
   }, [hasAiKey, personalProgram, programExplanation]);
 
+  const handleRebuildPlan = () => {
+    if (
+      !window.confirm(
+        "Пересобрать план? Текущий план питания будет заменён, прогресс по дням не сбросится.",
+      )
+    ) {
+      return;
+    }
+    clearPersonalProgram();
+    setIsRebuilding(true);
+    setPersonalProgram(null);
+    setProgramExplanation(null);
+    setIsExplanationReady(false);
+    getPersonalProgram(q, { duration })
+      .then((program) => {
+        if (mountedRef.current) {
+          setPersonalProgram(program);
+        }
+      })
+      .finally(() => {
+        if (mountedRef.current) {
+          setIsRebuilding(false);
+        }
+      });
+  };
+
   if (personalProgram === null) {
     return (
       <div className="p-6 text-sm text-slate-500">
-        Олеся собирает программу под вашу анкету, ограничения и привычки...
+        {isRebuilding
+          ? "Собираю заново..."
+          : "Олеся собирает программу под вашу анкету, ограничения и привычки..."}
       </div>
     );
   }
@@ -285,10 +319,19 @@ export function NutritionPlanPage(
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-6">
-      <header className="space-y-2">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <h1 className="text-xl font-semibold tracking-tight text-slate-900">
           План питания
         </h1>
+        {!isDemo ? (
+          <button
+            type="button"
+            onClick={handleRebuildPlan}
+            className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:bg-slate-50"
+          >
+            Пересобрать план
+          </button>
+        ) : null}
       </header>
 
       {isDemo ? (

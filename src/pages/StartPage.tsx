@@ -1,18 +1,24 @@
 import { useEffect, useState } from "react";
+import {
+  readProgramDuration,
+  writeProgramDuration,
+  type ProgramDuration,
+} from "../modules/programConfig";
 import type { PageProps } from "./pageProps";
 
-const PROGRAM_CONFIG_STORAGE_KEY = "nutrition.programConfig";
-type ProgramDuration = 7 | 14 | 30;
-
 export function StartPage({ mock, navigate }: PageProps) {
-  const [duration, setDuration] = useState<ProgramDuration>(14);
+  const [duration, setDuration] = useState<ProgramDuration>(() =>
+    readProgramDuration(),
+  );
 
   useEffect(() => {
-    localStorage.setItem(
-      PROGRAM_CONFIG_STORAGE_KEY,
-      JSON.stringify({ duration }),
-    );
+    writeProgramDuration(duration);
   }, [duration]);
+
+  const startProgram = () => {
+    writeProgramDuration(duration);
+    navigate("questionnaire");
+  };
 
   return (
     <div className="mx-auto w-full max-w-4xl px-4 pt-10">
@@ -166,7 +172,7 @@ export function StartPage({ mock, navigate }: PageProps) {
             <div className="mt-5 flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => navigate("questionnaire")}
+                onClick={startProgram}
                 className="ui-btn-primary"
               >
                 Начать программу
@@ -181,7 +187,10 @@ export function StartPage({ mock, navigate }: PageProps) {
               {mock.hasProgram ? (
                 <button
                   type="button"
-                  onClick={() => navigate("dashboard")}
+                  onClick={() => {
+                    writeProgramDuration(duration);
+                    navigate("dashboard");
+                  }}
                   className="ui-btn-ghost"
                 >
                   Продолжить

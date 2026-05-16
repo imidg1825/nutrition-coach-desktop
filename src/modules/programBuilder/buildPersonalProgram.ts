@@ -1,11 +1,27 @@
 import type { ClientQuestionnaire } from "../questionnaire";
+import {
+  buildBreakfastFields,
+  buildDinnerFields,
+  buildLunchFields,
+  buildSnackFields,
+  type MealFieldContext,
+} from "./mealFields";
+import type { ProteinKey } from "./mealProtein";
+import {
+  ensureCatalogPoolSize,
+  filterCatalogForConstraints,
+} from "./catalogFilter";
+import { parseFoodConstraints } from "./foodConstraints";
+import {
+  BREAKFAST_CATALOG,
+  DINNER_CATALOG,
+  LUNCH_CATALOG,
+  pickDayMenu,
+  SNACK_CATALOG,
+  type DayMenuHistories,
+  type PickHistory,
+} from "./menuCatalog";
 import type { PersonalProgram, ProgramDay, ProgramMeal } from "./types";
-
-type DayTemplate = {
-  breakfast: string;
-  lunch: string;
-  dinner: string;
-};
 
 type DayCoachingTemplate = {
   mood: string;
@@ -20,44 +36,6 @@ type DayAlternativeTemplate = {
   takeAway: string;
   quickOption: string;
 };
-
-const DAY_TEMPLATES: DayTemplate[] = [
-  {
-    breakfast: "Овсянка на воде с яблоком",
-    lunch: "Гречка с курицей и овощами",
-    dinner: "Рыба с овощами",
-  },
-  {
-    breakfast: "Омлет с овощами",
-    lunch: "Овощной суп + птица",
-    dinner: "Тушёная индейка с овощами",
-  },
-  {
-    breakfast: "Гречневая каша",
-    lunch: "Рис с рыбой и салатом",
-    dinner: "Курица с овощами",
-  },
-  {
-    breakfast: "Творог с ягодами",
-    lunch: "Лёгкий куриный суп с овощами",
-    dinner: "Рыба с овощами",
-  },
-  {
-    breakfast: "Овсянка с бананом",
-    lunch: "Булгур с птицей",
-    dinner: "Овощное рагу с курицей",
-  },
-  {
-    breakfast: "Омлет с зеленью",
-    lunch: "Суп с курицей",
-    dinner: "Запечённая рыба с овощами",
-  },
-  {
-    breakfast: "Каша с фруктом",
-    lunch: "Курица с гречкой и салатом",
-    dinner: "Лёгкий ужин с овощами",
-  },
-];
 
 const DAY_COACHING_TEMPLATES: DayCoachingTemplate[] = [
   {
@@ -85,7 +63,7 @@ const DAY_COACHING_TEMPLATES: DayCoachingTemplate[] = [
     mood: "Мягкое продолжение без перегруза",
     focus: "Поддерживать комфортные порции",
     habit: "Начинать прием пищи не спеша",
-    task: "Сделать ужин легче по объему, но оставить курицу, рыбу или яйца",
+    task: "Сделать ужин легче по объёму: курица, индейка или яйца и немного овощей",
     supportMessage: "Даже при плотном графике можно сохранить базовые привычки.",
   },
   {
@@ -99,7 +77,7 @@ const DAY_COACHING_TEMPLATES: DayCoachingTemplate[] = [
     mood: "Спокойный день с акцентом на регулярность",
     focus: "Поддерживать понятный режим питания",
     habit: "Планировать завтрак с вечера",
-    task: "На обед или ужин соберите простую тарелку: птица или рыба + гарнир + овощи",
+    task: "На обед или ужин соберите простую тарелку: индейка с рисом и тёплыми овощами",
     supportMessage: "Если что-то не идеально, достаточно вернуться к плану со следующего приема пищи.",
   },
   {
@@ -110,10 +88,6 @@ const DAY_COACHING_TEMPLATES: DayCoachingTemplate[] = [
     supportMessage: "Ваши наблюдения по дню - полезная основа для следующей недели.",
   },
 ];
-
-function includesWord(s: string, word: string): boolean {
-  return s.toLowerCase().includes(word);
-}
 
 function detectWeightLossGoal(questionnaire: ClientQuestionnaire): boolean {
   const goalText = [
@@ -140,11 +114,11 @@ function buildPortionGuidance(
   }
   switch (questionnaire.dayScheduleAndWork.activityLevel) {
     case "низкий":
-      return "Умеренные порции, больше овощей, курицы, рыбы или яиц, перекусы небольшие.";
+      return "Умеренные порции: больше овощей, курицы, индейки или яиц, перекусы небольшие.";
     case "средний":
       return "Умеренные порции без жёстких ограничений, акцент на регулярность и качество еды.";
     case "высокий":
-      return "Не урезать питание резко: оставить мясо, рыбу, яйца, овощи, гречку, рис или картофель.";
+      return "Не урезать питание резко: курица, индейка, яйца, овощи, гречка, рис или картофель.";
   }
 }
 
@@ -159,34 +133,16 @@ function meal(
   return { type, title, dish, portion, cooking, replacement };
 }
 
-const PROTEIN_SOURCE_VARIANTS = [
-  "курица",
-  "индейка",
-  "говядина",
-  "рыба",
-  "яйцо",
-  "кролик",
-];
-
-const PROTEIN_PHRASE_VARIANTS = [
-  "курица",
-  "индейка",
-  "говядина",
-  "рыба",
-  "яйцо",
-  "кролик",
-];
-
 const DAY_ALTERNATIVE_TEMPLATES: DayAlternativeTemplate[] = [
   {
     cafeOrCanteen:
-      "Если получилось так, что обед только в столовой, берите суп + котлету с гарниром или рис + курицу + салат.",
+      "Если обед только в столовой, подойдут овощной суп и куриная котлета с гречкой или рис с курицей и салат.",
     takeAway: "",
     quickOption: "",
   },
   {
     cafeOrCanteen:
-      "Если день в разъездах, подойдёт бизнес-ланч: суп + второе или салат + горячее.",
+      "Если день в разъездах, подойдут овощной суп с куриной котлетой и гречкой или салат с рисом и индейкой.",
     takeAway: "В дорогу можно взять сэндвич + яйцо + фрукт.",
     quickOption: "",
   },
@@ -204,9 +160,9 @@ const DAY_ALTERNATIVE_TEMPLATES: DayAlternativeTemplate[] = [
   },
   {
     cafeOrCanteen:
-      "Если берете доставку, можно заказать суп, рис с курицей или рыбу с гарниром и салат.",
+      "Если берёте доставку, можно заказать овощной суп, рис с курицей и салат из свежих овощей.",
     takeAway:
-      "Если был кофе с печеньем - просто продолжайте день как обычно, а в следующий приём пищи возьмите яйцо, сыр или салат.",
+      "Если был кофе с чем-то сладким — просто продолжайте день как обычно, в следующий приём пищи возьмите яйцо, сыр или салат.",
     quickOption: "",
   },
   {
@@ -230,26 +186,26 @@ const DAY_ALTERNATIVE_TEMPLATES: DayAlternativeTemplate[] = [
   },
   {
     cafeOrCanteen:
-      "Если выбора нет - берите суп + второе: например, гречка с котлетой или рыба с картофелем.",
+      "Если выбора мало, возьмите овощной суп и гречку с куриной котлетой или рис с тушёной индейкой.",
     takeAway: "",
     quickOption: "Если времени нет вообще (2 минуты), подойдёт кефир, банан и вода.",
   },
   {
     cafeOrCanteen:
-      "Если выбираете доставку, берите салат + горячее или суп + рис с курицей.",
+      "Если выбираете доставку, берите салат и рис с тушёной индейкой или овощной суп с курицей.",
     takeAway:
       "Если готовить утром некогда, выручат остатки с вчера или готовые блюда из кулинарии.",
     quickOption: "",
   },
   {
     cafeOrCanteen:
-      "Если встречи до вечера, можно поесть в кафе без сложностей: суп + второе или салат + горячее.",
+      "Если встречи до вечера, в кафе подойдут овощной суп с курицей или салат с гречкой и овощами.",
     takeAway: "На такой день берите еду с собой: контейнер и небольшой перекус.",
     quickOption: "Ничего страшного, если не идеально.",
   },
   {
     cafeOrCanteen:
-      "Если съели сладкое, это ок: в следующий прием пищи можно взять что-то обычное - суп, салат или горячее без лишних добавок.",
+      "Если съели сладкое, это ок: в следующий приём пищи подойдут овощной суп, салат или рис с курицей и овощами.",
     takeAway:
       "Подойдёт формат 'что есть дома': остатки ужина, бутерброд, овощи или готовая еда.",
     quickOption: "",
@@ -290,14 +246,9 @@ export function buildPersonalProgram(
   const snacksAndTiming = questionnaire.foodAndProducts.snacksAndTiming.trim();
 
   const weightLossGoal = detectWeightLossGoal(questionnaire);
-  const hasLactoseIntolerance = includesWord(
-    questionnaire.medicalParticularities.intolerances,
-    "лактоз",
-  );
-  const hasNutAllergy = includesWord(
-    questionnaire.medicalParticularities.foodAllergies,
-    "орех",
-  );
+  const userConstraints = parseFoodConstraints(questionnaire);
+  const hasLactoseIntolerance = userConstraints.lactose;
+  const hasNutAllergy = userConstraints.nuts;
 
   const restrictionText = (
     questionnaire.medicalParticularities.medicalDietaryRestrictions +
@@ -327,6 +278,10 @@ export function buildPersonalProgram(
   const restrictions: string[] = [];
   if (hasLactoseIntolerance) restrictions.push("исключить продукты с лактозой");
   if (hasNutAllergy) restrictions.push("исключить орехи");
+  if (userConstraints.gluten) restrictions.push("исключить глютен");
+  if (userConstraints.egg) restrictions.push("исключить яйцо");
+  if (userConstraints.fish) restrictions.push("исключить рыбу");
+  if (userConstraints.meat) restrictions.push("исключить мясо птицы и говядину");
   if (hasFryingOrFatRestrictions)
     restrictions.push("без жареного и жирного, без зажарки");
   if (shouldAvoidSugar) restrictions.push("без сахара и сладких напитков");
@@ -340,99 +295,154 @@ export function buildPersonalProgram(
     restrictions,
   };
 
-  const snackVariants = shouldAvoidSugar
-    ? [
-        "яблоко и чай без сахара",
-        "яйцо и овощи",
-        "овощная нарезка и несладкий напиток",
-        "фрукт (небольшая порция)",
-      ]
-    : [
-        "яблоко и чай",
-        "яйцо и овощи",
-        "овощная нарезка и вода",
-        "фрукт (небольшая порция)",
-      ];
+  const breakfastPool = ensureCatalogPoolSize(
+    filterCatalogForConstraints(BREAKFAST_CATALOG, userConstraints, "breakfast"),
+    userConstraints,
+    "breakfast",
+  );
+  const lunchPool = ensureCatalogPoolSize(
+    filterCatalogForConstraints(LUNCH_CATALOG, userConstraints, "lunch"),
+    userConstraints,
+    "lunch",
+  );
+  const dinnerPool = ensureCatalogPoolSize(
+    filterCatalogForConstraints(DINNER_CATALOG, userConstraints, "dinner"),
+    userConstraints,
+    "dinner",
+  );
+  const snackPool = ensureCatalogPoolSize(
+    filterCatalogForConstraints(SNACK_CATALOG, userConstraints, "snack"),
+    userConstraints,
+    "snack",
+  );
+
+  const histories: DayMenuHistories = {
+    breakfast: [],
+    lunch: [],
+    dinner: [],
+    snack: [],
+  };
+
+  let lastBreakfastProtein: ProteinKey | null = null;
+  let lastSnackProtein: ProteinKey | null = null;
+  let dairyYesterday = false;
+  const dairyDayFlags: boolean[] = [];
 
   const days: ProgramDay[] = Array.from({ length: totalDays }, (_, i) => {
     const dayNumber = i + 1;
-    const template = DAY_TEMPLATES[i % DAY_TEMPLATES.length];
     const coachingTemplate =
       DAY_COACHING_TEMPLATES[i % DAY_COACHING_TEMPLATES.length];
-    const dailySnack = snackVariants[i % snackVariants.length];
-    const proteinSource = PROTEIN_SOURCE_VARIANTS[i % PROTEIN_SOURCE_VARIANTS.length];
-    const proteinPhrase = PROTEIN_PHRASE_VARIANTS[i % PROTEIN_PHRASE_VARIANTS.length];
     const alternativeTemplate =
       DAY_ALTERNATIVE_TEMPLATES[i % DAY_ALTERNATIVE_TEMPLATES.length];
 
-    const breakfastDish =
-      template.breakfast === "Творог с ягодами" && hasLactoseIntolerance
-        ? "Овсянка с фруктом"
-        : template.breakfast;
+    const { picks, lastBreakfastProtein: nextBfProtein, lastSnackProtein: nextSnackProtein, dairyToday } =
+      pickDayMenu({
+        dayIndex: i,
+        breakfastPool,
+        lunchPool,
+        dinnerPool,
+        snackPool,
+        histories,
+        lastBreakfastProtein,
+        lastSnackProtein,
+        mealsPerDay,
+        dairyYesterday,
+        dairyDayFlags,
+        constraints: userConstraints,
+      });
 
-    const cookingSuffix = hasFryingOrFatRestrictions
-      ? " Готовить без жарки и жирного."
-      : " Базово: варка, тушение или запекание.";
-    const sugarSuffix = shouldAvoidSugar
-      ? " Без сахара и сладких напитков."
-      : "";
+    lastBreakfastProtein = nextBfProtein;
+    lastSnackProtein = nextSnackProtein;
+    dairyYesterday = dairyToday;
+    dairyDayFlags[i] = dairyToday;
+
+    const record = (
+      slot: keyof DayMenuHistories,
+      item: (typeof picks)["breakfast"],
+    ): void => {
+      const entry: PickHistory = {
+        dayIndex: i,
+        diversityKey: item.diversityKey,
+        protein: item.protein,
+        breakfastType: item.breakfastType,
+      };
+      histories[slot].push(entry);
+    };
+
+    record("breakfast", picks.breakfast);
+    record("lunch", picks.lunch);
+    record("dinner", picks.dinner);
+    if (picks.snack) record("snack", picks.snack);
+    if (picks.secondSnack) record("snack", picks.secondSnack);
+
+    const fieldCtx: MealFieldContext = {
+      hasLactoseIntolerance,
+      userConstraints,
+      restrictionsInNutritionRules: true,
+      dayIndex: i,
+    };
+
+    const breakfastFields = buildBreakfastFields(picks.breakfast.dish, fieldCtx);
+    const lunchFields = buildLunchFields(picks.lunch.dish, fieldCtx);
+    const dinnerFields = buildDinnerFields(picks.dinner.dish, fieldCtx);
 
     const meals: ProgramMeal[] = [
       meal(
         "breakfast",
         "Завтрак",
-        breakfastDish,
-        "120-180 г основа + фрукт/овощи",
-        `Готовить мягко, без перегруза.${sugarSuffix}${cookingSuffix}`,
-        "Омлет с овощами или каша",
+        breakfastFields.dish,
+        breakfastFields.portion,
+        breakfastFields.cooking,
+        breakfastFields.replacement,
       ),
       meal(
         "lunch",
         "Обед",
-        template.lunch,
-        `Гарнир 120-180 г + ${proteinSource} 100-150 г + овощи 150-250 г`,
-        `Суп: 250-350 мл. ${proteinPhrase}: отварить или запечь.${cookingSuffix}`,
-        `Рис/гречка/булгур + ${proteinPhrase} + овощи`,
+        lunchFields.dish,
+        lunchFields.portion,
+        lunchFields.cooking,
+        lunchFields.replacement,
       ),
       meal(
         "dinner",
         "Ужин",
-        template.dinner,
-        `${proteinSource} 100-150 г + овощи 150-250 г`,
-        `Лёгкий ужин: тушение/запекание.${cookingSuffix}`,
-        `Омлет с овощами или ${proteinPhrase}`,
+        dinnerFields.dish,
+        dinnerFields.portion,
+        dinnerFields.cooking,
+        dinnerFields.replacement,
       ),
     ];
 
-    if (mealsPerDay > 3) {
-      const snackDish = snacksAndTiming
-        ? `Текущая привычка: ${snacksAndTiming}`
-        : dailySnack;
+    if (picks.snack) {
+      const snackFields = buildSnackFields(picks.snack.dish, fieldCtx);
+      const habitHint =
+        snacksAndTiming &&
+        !/печень|конфет|конфетк/i.test(snacksAndTiming)
+          ? ` Учтите привычку: ${snacksAndTiming.trim()}.`
+          : "";
+
       meals.push(
         meal(
           "snack",
           "Перекус",
-          snackDish,
-          "Маленькая порция",
-          weightLossGoal
-            ? `Небольшой перекус без увеличения общего объёма.${sugarSuffix}`
-            : `Лёгкий перекус между основными приёмами.${sugarSuffix}`,
-          `Мягкая замена: ${dailySnack}`,
+          snackFields.dish,
+          snackFields.portion,
+          `${snackFields.cooking}${habitHint}`,
+          snackFields.replacement,
         ),
       );
     }
 
-    if (mealsPerDay > 4) {
+    if (picks.secondSnack) {
+      const secondSnackFields = buildSnackFields(picks.secondSnack.dish, fieldCtx);
       meals.push(
         meal(
           "secondSnack",
           "Второй перекус",
-          shouldAvoidSugar
-            ? "овощи и яйцо, чай без сахара"
-            : "овощи и яйцо, чай",
-          "Маленькая порция",
-          `Небольшой второй перекус без перегруза.${sugarSuffix}`,
-          "Фрукт или овощная нарезка",
+          secondSnackFields.dish,
+          secondSnackFields.portion,
+          secondSnackFields.cooking,
+          secondSnackFields.replacement,
         ),
       );
     }
