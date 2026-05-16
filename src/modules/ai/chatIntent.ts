@@ -1,12 +1,22 @@
 export type ChatIntent =
   | "nutrition"
+  | "replacement"
   | "day_reflection"
   | "wellbeing"
   | "offtopic"
   | "boundary"
-  | "medical";
+  | "medical"
+  | "acute"
+  | "eating_disorder";
 
-/** Подстроки и фразы: сексуальное/провокационное/агрессивное (не использовать голое «мат» — ложные срабатывания на «формат», «математика»). */
+export const OLESYA_TELEGRAM_HANDLE = "@Olesya_nutrifarma";
+
+/** Фраза эскалации в Telegram для сложных и медицинских вопросов. */
+export function buildTelegramEscalationLine(): string {
+  return `Напишите мне в Telegram (${OLESYA_TELEGRAM_HANDLE}), чтобы я посмотрела контекст лично.`;
+}
+
+/** Подстроки и фразы: сексуальное/провокационное/агрессивное. */
 const BOUNDARY_INCLUDES = [
   "секс",
   "заняться сексом",
@@ -44,7 +54,6 @@ const BOUNDARY_INCLUDES = [
   "пошел нах",
 ];
 
-/** Отдельные токены мата/оскорблений (после нормализации пробелов). */
 const BOUNDARY_TOKENS = new Set([
   "блять",
   "блядь",
@@ -75,20 +84,41 @@ const BOUNDARY_TOKENS = new Set([
   "гнида",
 ]);
 
-function normalizeForTokens(text: string): string[] {
-  return text
-    .toLowerCase()
-    .split(/[^a-zа-яё0-9]+/iu)
-    .filter(Boolean);
-}
+const ACUTE_INCLUDES = [
+  "боль в груди",
+  "давит в груди",
+  "обморок",
+  "сильная одышка",
+  "не могу дышать",
+  "сильная слабость",
+  "сильное головокружение",
+  "кружится голова и боль",
+  "многократная рвота",
+  "рвота кров",
+  "кровь в",
+  "резкое ухудшение",
+  "сильная аллергическая",
+  "отёк лица",
+  "отек лица",
+  "отёк губ",
+  "отек губ",
+  "не могу глотать",
+  "судороги",
+];
 
-function matchesBoundary(text: string): boolean {
-  if (BOUNDARY_INCLUDES.some((s) => text.includes(s))) return true;
-  const tokens = normalizeForTokens(text);
-  return tokens.some((t) => BOUNDARY_TOKENS.has(t));
-}
+const EATING_DISORDER_INCLUDES = [
+  "рпп",
+  "компульсив",
+  "вызываю рвоту",
+  "вызывала рвоту",
+  "срываюсь и рвот",
+  "набуха",
+  "заедаю стресс",
+  "не контролирую еду",
+  "булими",
+  "анорекс",
+];
 
-/** Подстроки без коротких двусмысленных маркеров (например «бад» → «бадминтон» — только через токены). */
 const MEDICAL_INCLUDES = [
   "препарат",
   "препараты",
@@ -112,6 +142,7 @@ const MEDICAL_INCLUDES = [
   "диабет",
   "жкт",
   "гастрит",
+  "тахикард",
   "беременность",
   "давление",
   "щитовидка",
@@ -119,14 +150,135 @@ const MEDICAL_INCLUDES = [
   "назначил",
   "можно ли принимать",
   "совместимость",
+  "дозировк",
+  "сколько пить",
+  "сколько принимать",
 ];
 
 const MEDICAL_TOKENS = new Set(["бад", "бады"]);
+
+const REPLACEMENT_WORDS = [
+  "замен",
+  "замени",
+  "заменить",
+  "вместо",
+  "не подходит",
+  "не ем",
+  "не ест",
+  "чем заменить",
+  "не хочу",
+  "не могу есть",
+  "тошнит от",
+  "аллерг",
+  "непереносим",
+];
+
+const NUTRITION_WORDS = [
+  "еда",
+  "питание",
+  "питаться",
+  "завтрак",
+  "обед",
+  "ужин",
+  "перекус",
+  "сладк",
+  "сахар",
+  "тяга",
+  "хочу есть",
+  "голод",
+  "переел",
+  "переела",
+  "сорвал",
+  "сорвалась",
+  "меню",
+  "рецепт",
+  "что приготовить",
+  "что купить",
+  "купить",
+  "блюдо",
+  "продукт",
+  "план",
+  "рацион",
+];
+
+const DAY_WORDS = [
+  "день",
+  "сегодня",
+  "вечером",
+  "ночью",
+  "не успел",
+  "не успела",
+  "мотался",
+  "моталась",
+  "хаос",
+  "на работе",
+  "по делам",
+];
+
+const WELLBEING_WORDS = [
+  "устал",
+  "устала",
+  "усталость",
+  "стресс",
+  "сон",
+  "не высп",
+  "нет сил",
+  "тревож",
+  "плохо",
+  "самочувствие",
+  "нервы",
+  "тошнит",
+  "тошнота",
+  "кружится",
+  "головокруж",
+];
+
+const OFF_TOPIC_WORDS = [
+  "фильм",
+  "сериал",
+  "посмотреть",
+  "игра",
+  "новости",
+  "погода",
+  "музыка",
+  "курс доллара",
+  "политик",
+];
+
+function normalizeForTokens(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-zа-яё0-9]+/iu)
+    .filter(Boolean);
+}
+
+function matchesBoundary(text: string): boolean {
+  if (BOUNDARY_INCLUDES.some((s) => text.includes(s))) return true;
+  const tokens = normalizeForTokens(text);
+  return tokens.some((t) => BOUNDARY_TOKENS.has(t));
+}
+
+function matchesAcute(text: string): boolean {
+  return ACUTE_INCLUDES.some((s) => text.includes(s));
+}
+
+function matchesEatingDisorder(text: string): boolean {
+  return EATING_DISORDER_INCLUDES.some((s) => text.includes(s));
+}
 
 function matchesMedical(text: string): boolean {
   if (MEDICAL_INCLUDES.some((s) => text.includes(s))) return true;
   const tokens = normalizeForTokens(text);
   return tokens.some((t) => MEDICAL_TOKENS.has(t));
+}
+
+function hasNutritionSignal(text: string): boolean {
+  return (
+    NUTRITION_WORDS.some((w) => text.includes(w)) ||
+    REPLACEMENT_WORDS.some((w) => text.includes(w)) ||
+    DAY_WORDS.some((w) => text.includes(w)) ||
+    WELLBEING_WORDS.some((w) => text.includes(w))
+  );
 }
 
 export function detectChatIntent(message: string): ChatIntent {
@@ -136,89 +288,40 @@ export function detectChatIntent(message: string): ChatIntent {
 
   if (matchesBoundary(text)) return "boundary";
 
+  if (matchesAcute(text)) return "acute";
+
+  if (matchesEatingDisorder(text)) return "eating_disorder";
+
   if (matchesMedical(text)) return "medical";
 
-  const nutritionWords = [
-    "еда",
-    "питание",
-    "завтрак",
-    "обед",
-    "ужин",
-    "перекус",
-    "сладкое",
-    "сахар",
-    "хочу есть",
-    "голод",
-    "переел",
-    "переела",
-    "сорвал",
-    "сорвалась",
-    "меню",
-    "рецепт",
-    "что приготовить",
-  ];
-
-  const dayWords = [
-    "день",
-    "сегодня",
-    "вечером",
-    "ночью",
-    "не успел",
-    "не успела",
-    "мотался",
-    "моталась",
-    "хаос",
-    "на работе",
-    "по делам",
-  ];
-
-  const wellbeingWords = [
-    "устал",
-    "устала",
-    "стресс",
-    "сон",
-    "не высп",
-    "нет сил",
-    "тревожно",
-    "плохо",
-    "самочувствие",
-    "нервы",
-  ];
-
-  const offTopicWords = [
-    "фильм",
-    "сериал",
-    "посмотреть",
-    "игра",
-    "новости",
-    "погода",
-    "музыка",
-  ];
-
   if (
-    offTopicWords.some((w) => text.includes(w)) &&
-    !nutritionWords.some((w) => text.includes(w)) &&
-    !wellbeingWords.some((w) => text.includes(w))
+    OFF_TOPIC_WORDS.some((w) => text.includes(w)) &&
+    !hasNutritionSignal(text)
   ) {
     return "offtopic";
   }
 
-  if (nutritionWords.some((w) => text.includes(w))) return "nutrition";
-  if (dayWords.some((w) => text.includes(w))) return "day_reflection";
-  if (wellbeingWords.some((w) => text.includes(w))) return "wellbeing";
+  if (REPLACEMENT_WORDS.some((w) => text.includes(w))) return "replacement";
+  if (NUTRITION_WORDS.some((w) => text.includes(w))) return "nutrition";
+  if (DAY_WORDS.some((w) => text.includes(w))) return "day_reflection";
+  if (WELLBEING_WORDS.some((w) => text.includes(w))) return "wellbeing";
 
-  return "offtopic";
+  return "nutrition";
 }
 
 export function buildSoftRedirectMessage(): string {
-  return "Я здесь больше про питание, самочувствие и прохождение программы. Давай лучше разберём, что сегодня повлияло на еду или состояние.";
+  return "Я здесь про питание, самочувствие и прохождение программы. Давай разберём, что сегодня повлияло на еду или состояние — или спросите про блюдо из плана дня.";
 }
 
 export function buildBoundaryMessage(): string {
-  return "Я здесь, чтобы помочь с питанием, самочувствием и прохождением программы. Давай лучше разберём, что сейчас происходит с днём или едой.";
+  return "Я здесь, чтобы помочь с питанием, самочувствием и прохождением программы. Давай разберём, что сейчас происходит с днём или едой.";
 }
 
-/** Текст для локальных ответов или напоминаний; маршрутизация чата не заменяет OpenRouter на это сообщение. */
 export function buildMedicalSafetyMessage(): string {
   return "Перед применением лучше согласовать это с вашим врачом, особенно если есть диагнозы, анализы или назначенное лечение.";
+}
+
+/** Локальный ответ при острых симптомах — без ожидания API. */
+export function buildAcuteEscalationMessage(): string {
+  return `Это звучит серьёзно — при таких симптомах важно не откладывать: обратитесь за медицинской помощью срочно (скорая или ближайший врач). Когда станет безопаснее, напишите мне в Telegram (${OLESYA_TELEGRAM_HANDLE}), чтобы я посмотрела контекст лично.`;
 }

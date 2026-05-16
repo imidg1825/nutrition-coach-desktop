@@ -11,7 +11,10 @@ import { parseFoodConstraints } from "../modules/programBuilder/foodConstraints"
 import { loadPersonalProgram } from "../modules/programBuilder/programStorage";
 import { validatePersonalProgram } from "../modules/programBuilder/validatePersonalProgram";
 import { buildAssistantResponse } from "../modules/ai/assistantResponse";
-import { buildOlesyaChatResponse } from "../modules/ai/olesyaChatResponse";
+import {
+  buildOlesyaChatResponse,
+  CHAT_UNAVAILABLE_FALLBACK_MESSAGE,
+} from "../modules/ai/olesyaChatResponse";
 import {
   detectUserProfileFromScenarios,
   getDetectedScenarios,
@@ -401,6 +404,33 @@ export function DayPage({
     const tips = OLESYA_DAY_TIPS;
     return tips[Math.floor(Math.random() * tips.length)] ?? "";
   });
+
+  const olesyaPlannedDay = useMemo(() => {
+    if (!personalProgram) {
+      return null;
+    }
+    const day =
+      personalProgram.days[displayDayNumber - 1] ??
+      personalProgram.days[personalProgram.days.length - 1];
+    if (!day) {
+      return null;
+    }
+    return {
+      dayNumber: day.dayNumber,
+      focus: day.focus,
+      habit: day.habit,
+      task: day.task,
+      supportMessage: day.supportMessage,
+      meals: day.meals.map((meal) => ({
+        type: meal.type,
+        title: meal.title,
+        dish: meal.dish,
+        portion: meal.portion,
+        cooking: meal.cooking,
+        replacement: meal.replacement,
+      })),
+    };
+  }, [personalProgram, displayDayNumber]);
 
   useEffect(() => {
     if (personalProgram !== null) {
@@ -821,13 +851,16 @@ export function DayPage({
                   try {
                     const reply = await buildOlesyaChatResponse({
                       userMessage: chatMessage,
+                      plannedDay: olesyaPlannedDay,
                       dayContext,
                       actualMeals,
                       clientQuestionnaire: q,
                     });
                     setChatReply(reply);
-                  } catch (err: unknown) {
-                    setChatError(err instanceof Error ? err.message : String(err));
+                    setChatError(null);
+                  } catch {
+                    setChatReply(CHAT_UNAVAILABLE_FALLBACK_MESSAGE);
+                    setChatError(null);
                   } finally {
                     setChatLoading(false);
                   }

@@ -1,11 +1,16 @@
 import type { ClientQuestionnaire } from "../questionnaire";
+import type { ProgramMealType } from "../programBuilder/types";
 import {
+  buildAcuteEscalationMessage,
   buildBoundaryMessage,
   buildMedicalSafetyMessage,
   buildSoftRedirectMessage,
+  buildTelegramEscalationLine,
   detectChatIntent,
 } from "./chatIntent";
 import { callOpenRouterChat } from "./openRouterClient";
+
+const OPEN_ROUTER_CHAT_TIMEOUT_MS = 18_000;
 
 const ADDRESSING_LABELS: Record<
   ClientQuestionnaire["basics"]["preferredAddressing"],
@@ -16,12 +21,19 @@ const ADDRESSING_LABELS: Record<
   neutral: "нейтральное обращение",
 };
 
+const MEAL_TYPE_LABELS: Record<ProgramMealType, string> = {
+  breakfast: "Завтрак",
+  lunch: "Обед",
+  dinner: "Ужин",
+  snack: "Перекус",
+  secondSnack: "Второй перекус",
+};
+
 function trimNonEmpty(s: string | undefined | null): string | null {
   const t = (s ?? "").trim();
   return t.length > 0 ? t : null;
 }
 
-/** Строки блока «Контекст клиента»; пустые поля анкеты не попадают. */
 function buildClientContextLines(q: ClientQuestionnaire): string[] {
   const lines: string[] = [];
   const { basics: b, goalAndDuration: g } = q;
@@ -69,7 +81,7 @@ function buildClientContextLines(q: ClientQuestionnaire): string[] {
 
   const meds = trimNonEmpty(h.medicationsNotes);
   if (meds) {
-    lines.push(`- Препараты: ${meds}`);
+    lines.push(`- Препараты (из анкеты): ${meds}`);
   }
 
   const habitParts = [
@@ -107,107 +119,31 @@ function buildUserContentWithClientContext(
   return `Контекст клиента:
 ${ctxLines.join("\n")}
 
+Вопрос:
 ${trimmed}`;
 }
 
-const OLESYA_CHAT_SYSTEM_PROMPT = `Ты — Олеся, нутрициолог с опытом, но главное — спокойный и поддерживающий человек.
+export type OlesyaPlannedMealContext = {
+  type: ProgramMealType | string;
+  title?: string;
+  dish: string;
+  portion: string;
+  cooking: string;
+  replacement: string;
+};
 
-Ты НЕ даёшь сухие советы и НЕ читаешь лекции.
-
-Формат ответа ВСЕГДА:
-1. Отражение (что происходит с человеком)
-2. Нормализация (без осуждения)
-3. Один маленький следующий шаг
-
-Ограничения:
-- максимум 3 предложения
-- без списков
-- без "правильного питания"
-- без перегрузки
-
-Завершённость ответа:
-- ответ всегда должен быть завершённым
-- не обрывай мысль на середине
-- если даёшь отражение, обязательно добавь нормализацию и один следующий шаг
-- не заканчивай ответ на словах вроде: "оказалось", "поэтому", "потому что", "и"
-
-Важно:
-- сначала понять состояние, а не еду
-- не исправлять человека
-- не давать несколько рекомендаций
-- не делай еду причиной ("из-за пирожных")
-- сначала состояние ("усталость", "напряжение"), потом еда как следствие
-- не используй термины: "белок", "клетчатка", "сбалансировать"
-- говори простыми словами
-- не давай конкретные блюда или продукты ("гречка", "овощи", "курица")
-- не давай примеры через "например"
-- оставляй шаг на уровне простого действия
-
-Плохо:
-"например, гречку с овощами"
-
-Хорошо:
-"давай добавим более сытный приём пищи днём"
-
-Примеры плохого ответа:
-"лучше добавить овощи"
-"нужно сбалансировать питание"
-
-Примеры хорошего ответа:
-"Похоже, сегодня было не до структуры в еде. В такие дни так бывает — это нормально. Давай завтра просто добавим один спокойный приём пищи днём."
-
-Пример плохо:
-"из-за пирожных"
-"добавь белковый перекус"
-
-Пример хорошо:
-"к вечеру было мало ресурса, поэтому потянуло на сладкое"
-"давай завтра добавим что-то более сытное днём"
-
-Если пользователь спрашивает, что сделать завтра, чтобы не сорваться вечером:
-- обязательно связать ответ с текущим днём
-- упомянуть вечер
-- дать один конкретный простой шаг на день
-- не отвечать общими словами вроде "добавьте что-то простое"
-
-Плохо:
-"Добавьте что-то простое для завтра."
-
-Хорошо:
-"Похоже, к вечеру сил стало меньше, поэтому сладкое оказалось самым быстрым вариантом. Это нормально после такого дня. Завтра давай заранее добавим один понятный приём пищи днём, чтобы вечером было спокойнее."
-
-Если вопрос не про питание или самочувствие:
-— мягко вернуть к теме
-
-Если ситуация сложная:
-— предложить обратиться за персональной консультацией
-
-Учитывай контекст клиента при ответе, но:
-- не ставь диагнозы
-- не назначай лечение или препараты
-- не давай дозировки
-- используй это только для мягкой адаптации рекомендаций по питанию и поведению`;
-
-const OLESYA_MEDICAL_INTENT_ADDENDUM = `
-
-Контекст вопроса: запрос с медицинской, фармацевтической или лабораторной тематикой (препараты, БАДы, анализы, диагнозы, врачебные назначения).
-
-Разрешено:
-- дать общий осторожный фармацевтический или нутрициологический комментарий простыми словами.
-
-Запрещено:
-- назначать препараты, дозировки, схемы приёма;
-- советовать отменять, заменять или продолжать лечение;
-- подменять врача или давать медицинский диагноз.
-
-Обязательно:
-- заверши ответ фразой дословно: "${buildMedicalSafetyMessage()}"
-- стиль Олеси: 2–4 коротких предложения, без списков, мягко, один следующий шаг; не перегружай.
-
-Если в вопросе фигурируют диагнозы, беременность, диабет, ЖКТ, гормоны, сильные или тревожные симптомы, анализы — мягко рекомендуй персональную консультацию врача или профильного специалиста (в дополнение к общему комментарию, не вместо дисклеймера).`;
+export type OlesyaDayPlanContext = {
+  dayNumber: number;
+  focus?: string;
+  habit?: string;
+  task?: string;
+  supportMessage?: string;
+  meals: OlesyaPlannedMealContext[];
+};
 
 export type BuildOlesyaChatInput = {
   userMessage: string;
+  plannedDay?: OlesyaDayPlanContext | null;
   dayContext?: string;
   actualMeals?: {
     breakfast?: string;
@@ -215,51 +151,165 @@ export type BuildOlesyaChatInput = {
     snacks?: string;
     dinner?: string;
   };
-  /** Анкета для мягкой персонализации ответов (блок «Контекст клиента» в user message). */
   clientQuestionnaire?: ClientQuestionnaire | null;
 };
 
-const CHAT_API_FALLBACK_MESSAGE =
-  "Сейчас ответ не подгрузился — так бывает при сбое сети или если сервис временно недоступен. Это не ваша ошибка. Попробуйте написать чуть позже; а пока можно спокойно сделать один маленький шаг без давления на себя.";
+export const CHAT_UNAVAILABLE_FALLBACK_MESSAGE =
+  "Сейчас я не могу ответить через чат — так бывает без связи или если сервис временно недоступен. Если вопрос срочный или про самочувствие, напишите мне в Telegram (@Olesya_nutrifarma), чтобы я посмотрела контекст лично. А по питанию на сегодня можно спокойно ориентироваться на план дня и замены из карточек приёмов пищи.";
+
+const OLESYA_CHAT_SYSTEM_PROMPT = `Ты — Олеся, дипломированный фармацевт и нутрициолог. Отвечаешь мягко, по-человечески, без стыда и давления.
+
+Продукт:
+- План питания на день уже собран локально из проверенной базы блюд (не из интернета).
+- Ты НЕ генерируешь новый рацион с нуля и НЕ пересобираешь весь план на 7/14/30 дней.
+- Можешь помочь разобраться с текущим днём, самочувствием, привычками и заменами.
+
+Стиль:
+- 3–6 коротких предложений; для замен можно краткий список из 1–3 пунктов.
+- Сначала отрази состояние человека, потом практический шаг.
+- Простые слова; без лекций.
+- Не используй слова: «срыв», «провал», «нарушение», «вина».
+- Не обещай гарантированное похудение или «точный» результат.
+- Не ставь диагнозы.
+
+Замены блюд/продуктов:
+- Если пишут «не ем X» / «X не подходит» — сначала равноценная белковая замена, если X был белковым (творог, мясо, рыба, яйца, бобовые).
+- Первым вариантом бери «Замена» из карточки этого приёма в плане дня, если она подходит под ограничения.
+- Овощи, салат, морковь — только как дополнение к основной замене, не вместо белка.
+- Всего 1–3 конкретных варианта; учитывай аллергии из анкеты.
+- Не пересобирай весь день.
+
+Медицина и БАДы:
+- Можно назвать возможные направления для обсуждения (например магний, витамин D, пробиотики) — без назначения курса.
+- Запрещены формулировки: «начните принимать», «вам нужно пить», «принимайте», любые дозировки, схемы и длительность.
+- Обязательно: подбор зависит от анализов, текущих лекарств, диагнозов и контекста; это не замена врача.
+- При диагнозах, лекарствах, тахикардии, гастрите и похожих темах — предложи личный разбор в Telegram.
+
+Сложные ситуации:
+- Если вопрос слишком индивидуальный — мягко предложи личный контакт в Telegram.`;
+
+const REPLACEMENT_INTENT_ADDENDUM = `
+
+Контекст: пользователь не ест продукт / просит заменить блюдо.
+- Сначала найди в плане дня приём с этим продуктом; если в карточке есть «Замена» — предложи её первой (если безопасно по анкете).
+- Если убранный продукт белковый (творог, йогурт, мясо, рыба, яйца, бобовые, сыр) — первый вариант должен быть другой белковой заменой из плана или близкой по смыслу.
+- Не предлагай только овощи/салат/морковь как единственную замену белка; овощи — максимум как дополнение.
+- 1–3 пункта, конкретные названия из контекста дня; не пересобирай весь день.`;
+
+const MEDICAL_INTENT_ADDENDUM = `
+
+Контекст: препараты, БАДы, витамины, анализы, диагнозы.
+- 2–4 предложения: можно перечисить возможные направления для обсуждения (магний, витамин D, пробиотики, омега-3 и т.п.) — как темы, не как назначение.
+- Нельзя: «начните принимать», «вам нужно пить», «принимайте»; дозировки; схемы; длительность курса; отмена или замена лечения врача.
+- Обязательно скажи, что подбор зависит от анализов, лекарств, диагнозов и общего контекста.
+- При диагнозах, постоянных лекарствах, тахикардии, гастрите, ЖКТ, гормонах — мягко предложи: ${buildTelegramEscalationLine()}
+- Заверши фразой: «${buildMedicalSafetyMessage()}»`;
+
+const EATING_DISORDER_INTENT_ADDENDUM = `
+
+Контекст: РПП, компульсивное переедание, рвота после еды, потеря контроля над едой.
+- Поддержи без осуждения.
+- Не давай жёстких диет и «наказаний» за еду.
+- Мягко предложи личный разбор: ${buildTelegramEscalationLine()}`;
+
+function buildPlannedDaySummary(
+  plannedDay: OlesyaDayPlanContext | null | undefined,
+  dayContext: string | undefined,
+  actualMeals: BuildOlesyaChatInput["actualMeals"],
+): string {
+  const lines: string[] = [];
+
+  if (plannedDay) {
+    lines.push(`День ${plannedDay.dayNumber} из программы`);
+    const coaching = [
+      trimNonEmpty(plannedDay.focus) && `Фокус: ${plannedDay.focus}`,
+      trimNonEmpty(plannedDay.habit) && `Привычка: ${plannedDay.habit}`,
+      trimNonEmpty(plannedDay.task) && `Задание: ${plannedDay.task}`,
+      trimNonEmpty(plannedDay.supportMessage) &&
+        `Поддержка: ${plannedDay.supportMessage}`,
+    ].filter(Boolean) as string[];
+    if (coaching.length) {
+      lines.push(coaching.join("\n"));
+    }
+    lines.push("План на день:");
+    for (const meal of plannedDay.meals) {
+      const label =
+        MEAL_TYPE_LABELS[meal.type as ProgramMealType] ??
+        meal.title ??
+        String(meal.type);
+      lines.push(
+        [
+          `• ${label}: ${meal.dish}`,
+          `  Порция: ${meal.portion}`,
+          `  Готовка: ${meal.cooking}`,
+          meal.replacement ? `  Замена: ${meal.replacement}` : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      );
+    }
+  }
+
+  const reflection = trimNonEmpty(dayContext);
+  if (reflection) {
+    lines.push(`Как прошёл день (слова пользователя): ${reflection}`);
+  }
+
+  const actualParts = [
+    trimNonEmpty(actualMeals?.breakfast) && `Факт — завтрак: ${actualMeals!.breakfast}`,
+    trimNonEmpty(actualMeals?.lunch) && `Факт — обед: ${actualMeals!.lunch}`,
+    trimNonEmpty(actualMeals?.snacks) && `Факт — перекусы: ${actualMeals!.snacks}`,
+    trimNonEmpty(actualMeals?.dinner) && `Факт — ужин: ${actualMeals!.dinner}`,
+  ].filter(Boolean) as string[];
+  if (actualParts.length) {
+    lines.push("Что получилось по факту:\n" + actualParts.join("\n"));
+  }
+
+  return lines.length > 0 ? lines.join("\n\n") : "нет данных по текущему дню";
+}
+
+function buildIntentAddendum(intent: ReturnType<typeof detectChatIntent>): string {
+  if (intent === "replacement") return REPLACEMENT_INTENT_ADDENDUM;
+  if (intent === "medical") return MEDICAL_INTENT_ADDENDUM;
+  if (intent === "eating_disorder") return EATING_DISORDER_INTENT_ADDENDUM;
+  return "";
+}
 
 export async function buildOlesyaChatResponse(
   input: BuildOlesyaChatInput,
 ): Promise<string> {
   const intent = detectChatIntent(input.userMessage);
-  if (intent === "offtopic") {
-    return buildSoftRedirectMessage();
-  }
+
   if (intent === "boundary") {
     return buildBoundaryMessage();
+  }
+  if (intent === "acute") {
+    return buildAcuteEscalationMessage();
+  }
+  if (intent === "offtopic") {
+    return buildSoftRedirectMessage();
   }
 
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY?.trim();
   if (!apiKey) {
-    throw new Error("VITE_OPENROUTER_API_KEY is required");
+    return CHAT_UNAVAILABLE_FALLBACK_MESSAGE;
   }
 
-  const daySummaryText = [
+  const daySummaryText = buildPlannedDaySummary(
+    input.plannedDay,
     input.dayContext,
-    input.actualMeals?.breakfast && `Завтрак: ${input.actualMeals.breakfast}`,
-    input.actualMeals?.lunch && `Обед: ${input.actualMeals.lunch}`,
-    input.actualMeals?.snacks && `Перекусы: ${input.actualMeals.snacks}`,
-    input.actualMeals?.dinner && `Ужин: ${input.actualMeals.dinner}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+    input.actualMeals,
+  );
 
-  const systemPromptWithContext = `${OLESYA_CHAT_SYSTEM_PROMPT}${
-    intent === "medical" ? OLESYA_MEDICAL_INTENT_ADDENDUM : ""
-  }
+  const systemPromptWithContext = `${OLESYA_CHAT_SYSTEM_PROMPT}${buildIntentAddendum(intent)}
 
-Контекст текущего дня:
-${daySummaryText || "нет данных"}
+Контекст текущего дня (только этот день, не вся программа):
+${daySummaryText}
 
 Важно:
-- если есть контекст — опирайся на него
-- можешь мягко ссылаться на него ("судя по дню", "похоже сегодня...")
-- не перечисляй всё
-- не превращай ответ в анализ`;
+- опирайся на план дня и замены из карточек;
+- не перечисляй весь день без необходимости;
+- не пересобирай программу целиком.`;
 
   const userContent = buildUserContentWithClientContext(
     input.userMessage,
@@ -273,8 +323,9 @@ ${daySummaryText || "нет данных"}
         { role: "system", content: systemPromptWithContext },
         { role: "user", content: userContent },
       ],
+      timeoutMs: OPEN_ROUTER_CHAT_TIMEOUT_MS,
     });
   } catch {
-    return CHAT_API_FALLBACK_MESSAGE;
+    return CHAT_UNAVAILABLE_FALLBACK_MESSAGE;
   }
 }
