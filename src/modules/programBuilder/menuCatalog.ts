@@ -260,6 +260,149 @@ function aquaticSpeciesScoreAdjustment(
   return adjustment;
 }
 
+/** Жёсткий strict-набор: 4+ активных ограничений из анкеты. */
+function isStrictConstraintSet(constraints: UserFoodConstraints): boolean {
+  const active = [
+    constraints.gluten,
+    constraints.lactose,
+    constraints.egg,
+    constraints.nuts,
+    constraints.meat,
+    constraints.fish || constraints.seaFish || constraints.riverFish,
+    constraints.seafood,
+  ].filter(Boolean).length;
+  return active >= 4;
+}
+
+const GRAIN_DISH_RE =
+  /гречк|рис|киноа|пшён|пшено|перлов|овсян|каша|булгур|манк/;
+
+const LEGUMES_DISH_RE = /фасол|нут|чечев|бобов|хумус/;
+
+function dishTextIsGrain(dish: string): boolean {
+  const t = dish.toLowerCase();
+  if (t.includes("хлебц")) {
+    return false;
+  }
+  return GRAIN_DISH_RE.test(t);
+}
+
+function dishTextIsCrispbreadBreakfast(candidate: CatalogDish, slot: MealSlot): boolean {
+  if (slot !== "breakfast") {
+    return false;
+  }
+  const t = candidate.dish.toLowerCase();
+  const k = candidate.diversityKey.toLowerCase();
+  return t.includes("хлебц") || k.includes("хлебц") || k.includes("-crisp");
+}
+
+function dishTextIsLegumes(dish: string): boolean {
+  return LEGUMES_DISH_RE.test(dish.toLowerCase());
+}
+
+function isPureVegetableStrictDish(
+  candidate: CatalogDish,
+  slot: MealSlot,
+): boolean {
+  const enriched = enrichDish(candidate, slot);
+  if (enriched.proteinType !== "none") {
+    return false;
+  }
+  if (candidate.contains.length > 0) {
+    return false;
+  }
+  const d = candidate.dish.toLowerCase();
+  if (dishTextIsLegumes(d)) {
+    return false;
+  }
+  if (dishTextIsGrain(d)) {
+    return false;
+  }
+  return true;
+}
+
+function countGrainUsesInWindow(
+  history: PickHistory[],
+  dayIndex: number,
+  windowDays: number,
+): number {
+  return history.filter((h) => {
+    if (dayIndex <= h.dayIndex || dayIndex - h.dayIndex > windowDays) {
+      return false;
+    }
+    const fromCatalog = CATALOG_BY_KEY.get(h.diversityKey);
+    if (!fromCatalog) {
+      return false;
+    }
+    return dishTextIsGrain(fromCatalog.dish);
+  }).length;
+}
+
+function countLegumesUsesInWindow(
+  history: PickHistory[],
+  dayIndex: number,
+  windowDays: number,
+): number {
+  return history.filter((h) => {
+    if (dayIndex <= h.dayIndex || dayIndex - h.dayIndex > windowDays) {
+      return false;
+    }
+    const fromCatalog = CATALOG_BY_KEY.get(h.diversityKey);
+    if (fromCatalog) {
+      return dishTextIsLegumes(fromCatalog.dish);
+    }
+    return h.protein === "бобовые";
+  }).length;
+}
+
+function strictScoreAdjustment(
+  candidate: CatalogDish,
+  opts: PickOptions,
+  global: PickHistory[],
+  totalUses: number,
+): number {
+  const constraints = opts.constraints;
+  if (!constraints || !isStrictConstraintSet(constraints)) {
+    return 0;
+  }
+
+  let adjustment = 0;
+
+  if (candidate.diversityKey.includes("-r1-") && totalUses === 0) {
+    adjustment -= 12;
+  }
+
+  if (isPureVegetableStrictDish(candidate, opts.slot)) {
+    adjustment -= 12;
+  }
+
+  const d = candidate.dish.toLowerCase();
+  if (dishTextIsCrispbreadBreakfast(candidate, opts.slot) && totalUses === 0) {
+    adjustment -= 12;
+  }
+
+  if (dishTextIsGrain(d)) {
+    const grainInSlot = countGrainUsesInWindow(opts.history, opts.dayIndex, 7);
+    const grainAll = countGrainUsesInWindow(global, opts.dayIndex, 7);
+    if (grainInSlot >= 2 || grainAll >= 4) {
+      adjustment += 32;
+    } else if (grainInSlot >= 1 || grainAll >= 2) {
+      adjustment += 20;
+    }
+  }
+
+  if (dishTextIsLegumes(d)) {
+    const legAll = countLegumesUsesInWindow(global, opts.dayIndex, 7);
+    if (legAll >= 2) {
+      adjustment += 36;
+    } else if (legAll >= 1) {
+      adjustment += 22;
+    }
+  }
+
+  return adjustment;
+}
+
 function scoreCandidate(
   candidate: CatalogDish,
   opts: PickOptions,
@@ -324,12 +467,35 @@ function scoreCandidate(
       (h) => snackProfileMap.get(h.diversityKey) === profile,
     ).length;
     if (profileUsesTotal >= 1) score += 40;
-    const preferredProfile =
-      (["dairy_snack", "hummus_vegetable", "fruit_nuts", "egg_snack", "crispbread_toast", "avocado_guacamole"] as const)[
-        opts.dayIndex % 6
-      ];
+    const strictSnack = opts.constraints && isStrictConstraintSet(opts.constraints);
+    const preferredProfile = strictSnack
+      ? (
+          [
+            "fruit_nuts",
+            "other_snack",
+            "hummus_vegetable",
+            "other_snack",
+            "crispbread_toast",
+            "avocado_guacamole",
+            "other_snack",
+          ] as const
+        )[opts.dayIndex % 7]
+      : (
+          [
+            "dairy_snack",
+            "hummus_vegetable",
+            "fruit_nuts",
+            "egg_snack",
+            "crispbread_toast",
+            "avocado_guacamole",
+          ] as const
+        )[opts.dayIndex % 6];
     if (profile !== preferredProfile) {
-      score += 12;
+      const skipOtherSnackPenalty =
+        strictSnack && profile === "other_snack";
+      if (!skipOtherSnackPenalty) {
+        score += 12;
+      }
     }
   }
 
@@ -354,6 +520,8 @@ function scoreCandidate(
     global,
     opts.dayIndex,
   );
+
+  score += strictScoreAdjustment(candidate, opts, global, totalUses);
 
   return score;
 }

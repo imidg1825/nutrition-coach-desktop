@@ -16,12 +16,12 @@ export const FALLBACK_BREAKFAST = [
     contains: [],
     breakfastType: "porridge",
   }),
-  mk("Овощи с хумусом", "fallback-овощи-хумус", {
-    proteinType: "legumes",
-    carbType: "none",
-    mealFamily: "bowl",
-    contains: ["legumes"],
-    breakfastType: "bowl",
+  mk("Рисовые хлебцы с томатом, зеленью и щепоткой соли", "fallback-рис-хлебцы-томат", {
+    proteinType: "none",
+    carbType: "rice",
+    mealFamily: "toast",
+    contains: [],
+    breakfastType: "toast",
   }),
 ];
 
@@ -71,15 +71,21 @@ export const FALLBACK_DINNER = [
 ];
 
 export const FALLBACK_SNACK = [
-  mk("Овощи с хумусом", "fallback-перекус-хумус", {
-    proteinType: "legumes",
-    carbType: "none",
-    mealFamily: "snack",
-    contains: ["legumes"],
-  }),
   mk("Фрукт и рисовые хлебцы", "fallback-перекус-фрукт-хлебцы", {
     proteinType: "none",
     carbType: "rice",
+    mealFamily: "snack",
+    contains: [],
+  }),
+  mk("Овощная нарезка с зеленью", "fallback-перекус-овощи-зелень", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "snack",
+    contains: [],
+  }),
+  mk("Запечённое яблоко с корицей", "fallback-перекус-яблоко-запеч", {
+    proteinType: "none",
+    carbType: "none",
     mealFamily: "snack",
     contains: [],
   }),

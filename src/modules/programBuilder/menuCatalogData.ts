@@ -283,7 +283,7 @@ export const BREAKFAST_CATALOG: CatalogDish[] = [
     contains: ["legumes", "gluten"],
     breakfastType: "toast",
   }),
-  mk("Киноа с овощами на завтрак", "завтр-киноа", {
+  mk("Киноа с тёплыми овощами и зеленью", "завтр-киноа", {
     proteinType: "none",
     carbType: "none",
     mealFamily: "bowl",
@@ -748,6 +748,83 @@ export const BREAKFAST_CATALOG: CatalogDish[] = [
     contains: [],
     breakfastType: "porridge",
   }),
+  mk("Рисовые безглютеновые хлебцы с томатом, зеленью и щепоткой соли", "завтр-r1-рис-crisp-томат", {
+    proteinType: "none",
+    carbType: "rice",
+    mealFamily: "toast",
+    contains: [],
+    breakfastType: "toast",
+  }),
+  mk("Киноа с тёплыми овощами и зеленью", "завтр-r1-киноа-овощи", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "bowl",
+    contains: [],
+    breakfastType: "bowl",
+  }),
+  mk("Тыква дольками с травами и лёгкой корочкой", "завтр-r1-тыква-травы", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "stew",
+    contains: [],
+    breakfastType: "bowl",
+  }),
+  mk("Рисовые безглютеновые хлебцы с томатом, огурцом и зеленью", "завтр-r2-рис-crisp-томат-огурец", {
+    proteinType: "none",
+    carbType: "rice",
+    mealFamily: "toast",
+    contains: [],
+    breakfastType: "toast",
+  }),
+  mk("Гречневые безглютеновые хлебцы с томатом и зеленью", "завтр-r2-греч-crisp-томат", {
+    proteinType: "none",
+    carbType: "buckwheat",
+    mealFamily: "toast",
+    contains: [],
+    breakfastType: "toast",
+  }),
+  mk("Тёплая тыква с яблоком и корицей", "завтр-r2-тыква-яблоко", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "stew",
+    contains: [],
+    breakfastType: "bowl",
+  }),
+  mk("Запечённое яблоко с рисовыми безглютеновыми хлебцами", "завтр-r2-яблоко-crisp", {
+    proteinType: "none",
+    carbType: "rice",
+    mealFamily: "toast",
+    contains: [],
+    breakfastType: "toast",
+  }),
+  mk("Картофельные дольки с укропом и огурцом", "завтр-r2-картофель-укроп", {
+    proteinType: "none",
+    carbType: "potato",
+    mealFamily: "stew",
+    contains: [],
+    breakfastType: "bowl",
+  }),
+  mk("Тёплый салат из свёклы, огурца и зелени", "завтр-r2-салат-свекла-огурец", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "salad",
+    contains: [],
+    breakfastType: "bowl",
+  }),
+  mk("Овощная тарелка с картофелем и укропом", "завтр-r2-овощи-картофель", {
+    proteinType: "none",
+    carbType: "potato",
+    mealFamily: "bowl",
+    contains: [],
+    breakfastType: "bowl",
+  }),
+  mk("Рисовые безглютеновые хлебцы с печёным яблоком и корицей", "завтр-r2-crisp-яблоко", {
+    proteinType: "none",
+    carbType: "rice",
+    mealFamily: "toast",
+    contains: [],
+    breakfastType: "toast",
+  }),
 ];
 
 export const LUNCH_CATALOG: CatalogDish[] = [
@@ -795,7 +872,7 @@ export const LUNCH_CATALOG: CatalogDish[] = [
     contains: ["legumes"],
     starchKey: "бобовые",
   }),
-  mk("Фасоль тушёная с овощами", "обед-фасоль", {
+  mk("Фасоль в томатном соусе с морковью", "обед-фасоль", {
     proteinType: "legumes",
     carbType: "none",
     mealFamily: "stew",
@@ -1133,7 +1210,7 @@ export const LUNCH_CATALOG: CatalogDish[] = [
     starchKey: "паста",
     dishSubtype: "fishMain",
   }),
-  mk("Суп с фасолью и овощами", "обед3-суп-фасоль", {
+  mk("Суп с фасолью, овощами и зеленью", "обед3-суп-фасоль", {
     proteinType: "legumes",
     carbType: "none",
     mealFamily: "soup",
@@ -1920,6 +1997,27 @@ export const LUNCH_CATALOG: CatalogDish[] = [
     starchKey: "картофель",
     dishSubtype: "fishMain",
   }),
+  mk("Картофель дольками с паприкой и зелёным салатом", "обед-r1-картофель-салат", {
+    proteinType: "none",
+    carbType: "potato",
+    mealFamily: "stew",
+    contains: [],
+    starchKey: "картофель",
+  }),
+  mk("Рис с томлёными овощами и зеленью", "обед-r1-рис-овощи-зелень", {
+    proteinType: "none",
+    carbType: "rice",
+    mealFamily: "bowl",
+    contains: [],
+    starchKey: "рис",
+  }),
+  mk("Капуста, тушённая с морковью и томатом", "обед-r1-капуста-морковь", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "stew",
+    contains: [],
+    starchKey: "салат",
+  }),
 ];
 
 export const DINNER_CATALOG: CatalogDish[] = [
@@ -1962,7 +2060,7 @@ export const DINNER_CATALOG: CatalogDish[] = [
     mealFamily: "stew",
     contains: ["meat"],
   }),
-  mk("Овощное рагу с фасолью", "ужин-рагу-фасоль", {
+  mk("Овощное рагу с фасолью и томатом", "ужин-рагу-фасоль", {
     proteinType: "legumes",
     carbType: "none",
     mealFamily: "stew",
@@ -2394,13 +2492,13 @@ export const DINNER_CATALOG: CatalogDish[] = [
     mealFamily: "stew",
     contains: ["legumes"],
   }),
-  mk("Тёплый салат с нутом", "ужин4-салат-нут", {
+  mk("Тёплый салат с нутом и зеленью", "ужин4-салат-нут", {
     proteinType: "legumes",
     carbType: "none",
     mealFamily: "salad",
     contains: ["legumes"],
   }),
-  mk("Овощное рагу с фасолью", "ужин4-рагу-фасоль", {
+  mk("Овощное рагу с фасолью и томатом", "ужин4-рагу-фасоль", {
     proteinType: "legumes",
     carbType: "none",
     mealFamily: "stew",
@@ -2529,6 +2627,20 @@ export const DINNER_CATALOG: CatalogDish[] = [
     mealFamily: "bowl",
     contains: [],
     starchKey: "рис",
+  }),
+  mk("Кабачки и баклажаны с чесноком под лёгкой корочкой", "ужин-r1-кабач-баклажан", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "stew",
+    contains: [],
+    starchKey: "салат",
+  }),
+  mk("Тёплый салат из запечённых овощей с зеленью", "ужин-r1-салат-запеч-овощи", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "salad",
+    contains: [],
+    starchKey: "салат",
   }),
 ];
 
@@ -3116,6 +3228,18 @@ export const SNACK_CATALOG: CatalogDish[] = [
     contains: [],
   }),
   mk("Свёкла отварная с укропом и лимоном", "перекус-свекла-укроп-лимон", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "snack",
+    contains: [],
+  }),
+  mk("Морковь дольками с паприкой и зеленью", "перекус-r1-морковь-паприка", {
+    proteinType: "none",
+    carbType: "none",
+    mealFamily: "snack",
+    contains: [],
+  }),
+  mk("Огуречный салат с укропом и каплей лимона", "перекус-r1-огурец-укроп", {
     proteinType: "none",
     carbType: "none",
     mealFamily: "snack",

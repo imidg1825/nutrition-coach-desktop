@@ -326,6 +326,43 @@ function snackFieldsPreservingGlutenFree(
   return null;
 }
 
+function containsCyrillicWord(text: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![а-яёa-z])${escaped}(?![а-яёa-z])`, "i").test(text);
+}
+
+function cookingHasExplicitGlutenIngredient(cooking: string): boolean {
+  const t = cooking.toLowerCase();
+  const always = [
+    "булгур",
+    "пшениц",
+    "пшеничн",
+    "цельнозерн",
+    "мука",
+    "паста",
+    "лапша",
+    "макарон",
+    "спагетти",
+    "лаваш",
+    "овсяноблин",
+    "булка",
+    "сухар",
+  ];
+  if (always.some((w) => t.includes(w))) {
+    return true;
+  }
+  return ["хлебц", "хлеб", "тост", "печень", "овсян", "блин"].some((w) =>
+    containsCyrillicWord(t, w),
+  );
+}
+
+function applyGlutenCookingWordReplacements(cooking: string): string {
+  return cooking
+    .replace(/(?<![а-яёa-z])хлебц(?![а-яёa-z])/gi, "безглютеновые хлебцы")
+    .replace(/(?<![а-яёa-z])хлеб(?![а-яёa-z])/gi, "безглютеновый хлеб")
+    .replace(/(?<![а-яёa-z])тост(?![а-яёa-z])/gi, "безглютеновый тост");
+}
+
 function ensureGlutenSafeFields(
   fields: Pick<ProgramMeal, "portion" | "cooking" | "replacement">,
   dish: string,
@@ -379,11 +416,12 @@ function ensureGlutenSafeFields(
   }
 
   if (textViolatesGluten(cooking)) {
-    cooking = cooking
-      .replace(/хлеб/gi, "безглютеновый хлеб")
-      .replace(/тост/gi, "безглютеновый тост")
-      .replace(/хлебц/gi, "безглютеновые хлебцы");
-    if (textViolatesGluten(cooking)) {
+    const substituted = applyGlutenCookingWordReplacements(cooking);
+    if (substituted !== cooking) {
+      cooking = textViolatesGluten(substituted)
+        ? "Соберите блюдо из разрешённых безглютеновых ингредиентов."
+        : substituted;
+    } else if (cookingHasExplicitGlutenIngredient(cooking)) {
       cooking = "Соберите блюдо из разрешённых безглютеновых ингредиентов.";
     }
   }
@@ -484,7 +522,7 @@ function starchPortionLabel(dish: string): string {
 function starchCookingLine(dish: string, gluten = false): string {
   const d = dish.toLowerCase();
   if (d.includes("греч")) {
-    return "Гречку отварите до рассыпчатости и подайте тёплым.";
+    return "Гречку отварите до рассыпчатости, подайте тёплой; зелень добавьте сверху.";
   }
   if (d.includes("булгур")) {
     return "Булгур залейте водой, проварите до мягкости и подайте тёплым.";
@@ -751,6 +789,509 @@ function buildVegetarianGrainMealFields(
   }
 
   return null;
+}
+
+/** Короткие аппетитные подсказки для простых домашних блюд из каталога (R1). */
+function tryAppetizingHomeDishFields(
+  dish: string,
+  slot: MealSlot,
+  ctx: MealFieldContext,
+): Pick<ProgramMeal, "portion" | "cooking" | "replacement"> | null {
+  const d = dish.toLowerCase();
+
+  if (
+    slot === "breakfast" &&
+    d.includes("хлебц") &&
+    d.includes("яблок") &&
+    (d.includes("запеч") || d.includes("печ") || d.includes("кориц"))
+  ) {
+    return {
+      portion: "Рисовые хлебцы 2–3 шт. + яблоко 1 шт.",
+      cooking:
+        "Яблоко запеките до мягкости; хлебцы подсушите и подайте с корицей.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "breakfast" && d.includes("хлебц") && d.includes("огурец")) {
+    return {
+      portion: "Рисовые хлебцы 2–3 шт. + овощи 100–120 г",
+      cooking: "Хлебцы подайте с нарезанным томатом, огурцом и зеленью.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "breakfast" && d.includes("гречн") && d.includes("хлебц")) {
+    return {
+      portion: "Гречневые хлебцы 2–3 шт. + томат и зелень 80–100 г",
+      cooking:
+        "Хлебцы слегка подсушите; томат и зелень нарежьте, подайте рядом.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "breakfast" && d.includes("тыкв") && d.includes("яблок")) {
+    return {
+      portion: "Тыква 120–150 г + яблоко 1 шт.",
+      cooking:
+        "Тыкву запеките дольками, яблоко добавьте рядом или слегка прогрейте с корицей.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "breakfast" &&
+    d.includes("картоф") &&
+    (d.includes("укроп") || d.includes("огурец"))
+  ) {
+    return {
+      portion: "Картофель 150–180 г + огурец 80–100 г",
+      cooking:
+        "Картофель запеките дольками до лёгкой корочки, добавьте укроп и огурец.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "breakfast" &&
+    d.includes("свёкл") &&
+    d.includes("огурец") &&
+    d.includes("салат")
+  ) {
+    return {
+      portion: "Салат 180–220 г",
+      cooking:
+        "Свёклу нарежьте, добавьте огурец, зелень и немного лимонного сока по вкусу.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "breakfast" && d.includes("овощн") && d.includes("тарелк")) {
+    return {
+      portion: "Овощная тарелка 200–250 г",
+      cooking:
+        "Картофель запеките дольками, выложите с огурцом и зеленью, посыпьте укропом.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    (slot === "breakfast" || slot === "snack") &&
+    d.includes("хлебц") &&
+    (d.includes("томат") || d.includes("помидор"))
+  ) {
+    return {
+      portion: "Рисовые хлебцы 2–3 шт. + томат и зелень 80–100 г",
+      cooking:
+        d.includes("огурец")
+          ? "Хлебцы подайте с нарезанным томатом, огурцом и зеленью."
+          : "Хлебцы слегка подсушите; томат нарежьте, посыпьте зеленью и щепоткой соли.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "breakfast" &&
+    d.includes("киноа") &&
+    (d.includes("овощ") || d.includes("зелен"))
+  ) {
+    return {
+      portion: "Киноа 150–180 г + тёплые овощи 120–150 г",
+      cooking:
+        "Киноа отварите; овощи потушите до мягкости, сверху добавьте зелень.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "breakfast" &&
+    d.includes("тыкв") &&
+    (d.includes("дольк") || d.includes("корочк") || d.includes("трав"))
+  ) {
+    return {
+      portion: "Тыква 150–200 г",
+      cooking:
+        "Запеките дольками до мягкости и лёгкой корочки, добавьте зелень.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    (slot === "lunch" || slot === "dinner") &&
+    d.includes("картоф") &&
+    (d.includes("паприк") || d.includes("дольк") || d.includes("салат"))
+  ) {
+    return {
+      portion: "Картофель 150–180 г + зелёный салат 150 г",
+      cooking:
+        "Картофель запеките дольками с паприкой до лёгкой корочки; салат подайте свежим.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "lunch" &&
+    d.includes("рис") &&
+    !d.includes("хлебц") &&
+    (d.includes("томл") || d.includes("туш") || d.includes("овощ"))
+  ) {
+    return {
+      portion: "Рис 150–180 г + овощи 150–200 г",
+      cooking:
+        "Рис отварите, овощи потушите до мягкости, сверху добавьте зелень.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    (slot === "lunch" || slot === "dinner") &&
+    d.includes("капуст") &&
+    d.includes("морков")
+  ) {
+    return {
+      portion: "Капуста 200–250 г",
+      cooking: "Потушите капусту с морковью и томатом, подайте тёплым.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "dinner" &&
+    (d.includes("кабач") || d.includes("баклаж")) &&
+    (d.includes("чеснок") || d.includes("корочк"))
+  ) {
+    return {
+      portion: "Овощи 200–250 г",
+      cooking:
+        "Запеките кабачки и баклажаны с чесноком до мягкости и лёгкой корочки.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (
+    slot === "dinner" &&
+    d.includes("салат") &&
+    d.includes("запеч") &&
+    d.includes("овощ")
+  ) {
+    return {
+      portion: "Салат 200–250 г",
+      cooking:
+        "Овощи запеките, смешайте тёплыми, добавьте зелень перед подачей.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "snack" && d.includes("морков") && d.includes("паприк")) {
+    return {
+      portion: "Морковь 150–180 г",
+      cooking:
+        "Запеките дольками с паприкой до мягкости и лёгкой корочки, добавьте зелень.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "snack" && d.includes("огуреч") && d.includes("салат")) {
+    return {
+      portion: "Огуречный салат 150–200 г",
+      cooking:
+        "Нарежьте огурец, добавьте укроп и немного лимонного сока по вкусу.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  if (slot === "snack" && d.includes("овощн") && d.includes("нарезк")) {
+    return {
+      portion: "Овощи 150–200 г",
+      cooking:
+        "Овощи нарежьте, выложите на тарелку; зелень и каплю лимона — по желанию.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  return null;
+}
+
+function buildBreakfastGenericFallback(
+  dish: string,
+  ctx: MealFieldContext,
+): Pick<ProgramMeal, "portion" | "cooking" | "replacement"> {
+  const d = dish.toLowerCase();
+  const gluten = glutenRestricted(ctx);
+
+  if (d.includes("овсян") || d.includes("каша") || d.includes("каши")) {
+    return {
+      portion: "Каша 150–200 г + фрукт 80–100 г",
+      cooking: `${starchCookingLine(dish, gluten)} Фрукт нарежьте или подайте целиком.`,
+      replacement: mealReplacement(dish, "breakfast", ctx),
+    };
+  }
+  if (d.includes("греч") && d.includes("зелен") && !d.includes("гриб")) {
+    return {
+      portion: "Гречка 150–180 г + зелень",
+      cooking:
+        "Гречку отварите до рассыпчатости, подайте тёплой; зелень добавьте сверху.",
+      replacement: mealReplacement(dish, "breakfast", ctx),
+    };
+  }
+  if (
+    d.includes("греч") ||
+    (d.includes("рис") && !d.includes("хлебц")) ||
+    d.includes("пшён") ||
+    d.includes("пшено") ||
+    d.includes("киноа")
+  ) {
+    return {
+      portion: "Крупа 150–180 г + овощи 100–150 г",
+      cooking: `${starchCookingLine(dish, gluten)} Овощи нарежьте свежими или слегка потушите.`,
+      replacement: mealReplacement(dish, "breakfast", ctx),
+    };
+  }
+  if (d.includes("хлебц") || d.includes("тост")) {
+    return {
+      portion: "Рисовые хлебцы 2–3 шт. + овощи 80–100 г",
+      cooking:
+        d.includes("томат") || d.includes("помидор")
+          ? "Хлебцы слегка подсушите; томат нарежьте, посыпьте зеленью и щепоткой соли."
+          : "Хлебцы слегка подсушите; овощи нарежьте свежими.",
+      replacement: mealReplacement(dish, "breakfast", ctx),
+    };
+  }
+  if (
+    d.includes("овощ") ||
+    d.includes("тыкв") ||
+    d.includes("кабач") ||
+    d.includes("салат")
+  ) {
+    return {
+      portion: "Овощное блюдо 180–220 г",
+      cooking:
+        "Овощи запеките или потушите под крышкой; зелень и лимонный сок — по желанию перед подачей.",
+      replacement: mealReplacement(dish, "breakfast", ctx),
+    };
+  }
+  if (d.includes("бутерброд") || (d.includes("ветчин") && d.includes("индейк"))) {
+    return {
+      portion: gluten
+        ? "2–3 рисовых хлебца + индейка 40–60 г + овощи 80 г"
+        : "1–2 ломтика хлеба + индейка 40–60 г + овощи 80 г",
+      cooking: gluten
+        ? "Рисовые хлебцы подсушите, индейку и овощи нарежьте тонко, выложите открытым бутербродом; добавьте зелень."
+        : "Хлеб слегка подсушите, индейку и овощи нарежьте тонко, соберите открытый бутерброд; зелень — сверху.",
+      replacement: mealReplacement(dish, "breakfast", ctx),
+    };
+  }
+
+  return {
+    portion: "Завтрак 150–200 г + фрукт или овощи 80–100 г",
+    cooking:
+      "Соберите завтрак из указанных продуктов; овощи или фрукт нарежьте свежими, подайте в спокойном темпе.",
+    replacement: mealReplacement(dish, "breakfast", ctx),
+  };
+}
+
+function buildSnackGenericFallback(
+  dish: string,
+  ctx: MealFieldContext,
+): Pick<ProgramMeal, "portion" | "cooking" | "replacement"> {
+  const d = dish.toLowerCase();
+  const lactose = lactoseRestricted(ctx);
+  const gluten = glutenRestricted(ctx);
+  const nutsFree = ctx.userConstraints.nuts;
+
+  if (
+    (d.includes("сыр") || d.includes("брынз")) &&
+    !d.includes("сырник") &&
+    (d.includes("груш") || d.includes("яблок") || d.includes("слив"))
+  ) {
+    if (lactose) {
+      return {
+        portion: "Фрукт 1 шт. (120–150 г)",
+        cooking:
+          "Фрукт нарежьте дольками; к перекусу добавьте овощи или рисовые хлебцы с авокадо.",
+        replacement: mealReplacement(dish, "snack", ctx),
+      };
+    }
+    const fruitPart = d.includes("груш")
+      ? "грушу — дольками"
+      : "фрукт нарежьте дольками";
+    return {
+      portion: "Сыр 30–40 г + фрукт 1 шт.",
+      cooking: nutsFree
+        ? `Сыр нарежьте тонкими ломтиками, ${fruitPart}; подайте вместе спокойно.`
+        : `Сыр нарежьте тонкими ломтиками, ${fruitPart}; подайте вместе, можно добавить несколько орехов.`,
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  if (d.includes("бутерброд") || (d.includes("ветчин") && d.includes("индейк"))) {
+    return {
+      portion: gluten
+        ? "2–3 рисовых хлебца + индейка 40–60 г + овощи 80 г"
+        : "1–2 ломтика хлеба + индейка 40–60 г + овощи 80 г",
+      cooking: gluten
+        ? "Рисовые хлебцы подсушите, индейку и овощи нарежьте тонко, выложите открытым бутербродом; добавьте зелень."
+        : "Хлеб слегка подсушите, индейку и овощи нарежьте тонко, соберите открытый бутерброд; зелень — сверху.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  if ((d.includes("хлебц") || d.includes("тост")) && d.includes("авокадо")) {
+    return {
+      portion: gluten
+        ? "2–3 рисовых хлебца + авокадо 40–60 г + овощи 80 г"
+        : "1–2 ломтика хлеба + авокадо 40–60 г + огурец 80 г",
+      cooking: gluten
+        ? "Авокадо разомните вилкой, выложите на подсушенные рисовые хлебцы, добавьте огурец или зелень."
+        : d.includes("тост")
+          ? "Подсушите тост, авокадо разомните вилкой и выложите на хлеб, добавьте огурец или зелень."
+          : "Авокадо разомните вилкой, выложите на подсушенные хлебцы, добавьте огурец или зелень.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  if (
+    d.includes("овощ") ||
+    d.includes("морков") ||
+    d.includes("огурец") ||
+    d.includes("перец") ||
+    (d.includes("салат") && !d.includes("курин") && !d.includes("индейк"))
+  ) {
+    return {
+      portion: "Овощи 150–200 г",
+      cooking:
+        "Овощи нарежьте палочками или кружочками, подайте с зеленью и каплей лимонного сока.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  if (
+    d.includes("орех") ||
+    d.includes("семеч") ||
+    d.includes("арахис") ||
+    (d.includes("фрукт") && (d.includes("орех") || d.includes("семеч")))
+  ) {
+    return {
+      portion: nutsFree ? "Фрукт 1 шт. (120–150 г)" : "Фрукт 1 шт. + орехи 15–20 г",
+      cooking: nutsFree
+        ? "Фрукт нарежьте дольками и подайте спокойно."
+        : "Фрукт нарежьте дольками, орехи подайте рядом небольшой горстью.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  if (d.includes("фрукт") || d.includes("яблок") || d.includes("банан") || d.includes("груш")) {
+    return {
+      portion: "Фрукт 1 шт. (120–150 г)",
+      cooking: "Фрукт нарежьте дольками или подайте целиком, если удобнее.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  if (d.includes("сыр") && !d.includes("сырник")) {
+    if (lactose) {
+      return {
+        portion: "Овощи 150–200 г",
+        cooking:
+          "Овощи нарежьте, подайте с зеленью; при желании — хумус или авокадо.",
+        replacement: mealReplacement(dish, "snack", ctx),
+      };
+    }
+    return {
+      portion: "Сыр 30–40 г + овощи 100 г",
+      cooking: "Сыр нарежьте ломтиками, овощи подайте свежими, можно добавить зелень.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  return {
+    portion: "Перекус 100–150 г",
+    cooking:
+      "Нарежьте основные продукты небольшими кусочками; при желании добавьте зелень или каплю лимонного сока.",
+    replacement: mealReplacement(dish, "snack", ctx),
+  };
+}
+
+function buildMixedVegetarianFallback(
+  dish: string,
+  slot: MealSlot,
+  ctx: MealFieldContext,
+): Pick<ProgramMeal, "portion" | "cooking" | "replacement"> {
+  const d = dish.toLowerCase();
+  const gluten = glutenRestricted(ctx);
+
+  if (d.includes("картоф")) {
+    return {
+      portion: "Картофель 150–180 г + овощи 150–200 г",
+      cooking:
+        d.includes("паприк") || d.includes("дольк")
+          ? "Запеките картофель дольками с паприкой до лёгкой корочки; салат подайте со зеленью."
+          : "Картофель отварите или запеките; овощи подайте свежими или тёплыми с зеленью.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+  if (d.includes("рис") && !d.includes("хлебц")) {
+    return {
+      portion: "Рис 150–180 г + овощи 150–200 г",
+      cooking:
+        d.includes("томл") || d.includes("туш")
+          ? "Рис отварите, овощи потушите до мягкости, сверху добавьте зелень."
+          : `${starchCookingLine(dish, gluten)} ${vegetableSideCookingLine(dish)}`,
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+  if (d.includes("греч")) {
+    return {
+      portion: "Гречка 150–180 г + овощи 150–200 г",
+      cooking: `${starchCookingLine(dish, gluten)} ${vegetableSideCookingLine(dish)}`,
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+  if (d.includes("гриб")) {
+    return {
+      portion: "Грибы с овощами 180–220 г + зелень",
+      cooking:
+        "Грибы потушите с луком; овощи подайте тёплыми; зелень — перед подачей.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+  if (d.includes("капуст") || d.includes("рагу")) {
+    return {
+      portion: "Овощное блюдо 200–250 г + зелень",
+      cooking:
+        d.includes("томат")
+          ? "Потушите капусту с морковью и томатом, подайте тёплым."
+          : "Овощи потушите под крышкой с морковью; зелень и лимонный сок — перед подачей.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+  if (d.includes("кабач") || d.includes("баклаж")) {
+    return {
+      portion: "Овощное блюдо 200–250 г + зелень",
+      cooking:
+        d.includes("чеснок") || d.includes("корочк")
+          ? "Запеките кабачки и баклажаны с чесноком до мягкости и лёгкой корочки."
+          : "Овощи запеките в духовке до мягкости; можно слегка приправить чесноком и травами.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+  if (d.includes("запеч") && d.includes("овощ")) {
+    return {
+      portion: "Овощи 200–250 г + зелень",
+      cooking:
+        d.includes("салат")
+          ? "Овощи запеките, смешайте тёплыми, добавьте зелень перед подачей."
+          : "Овощи запеките в духовке до мягкости; зелень — перед подачей.",
+      replacement: mealReplacement(dish, slot, ctx),
+    };
+  }
+
+  return {
+    portion: "Овощное блюдо 200–250 г + зелень",
+    cooking:
+      "Овощи потушите под крышкой или запеките; зелень и лимонный сок — перед подачей.",
+    replacement: mealReplacement(dish, slot, ctx),
+  };
 }
 
 function buildDairyVegetarianMealFields(
@@ -1106,11 +1647,12 @@ function buildBreakfastFieldsInner(
     }
   }
 
-  return {
-    portion: "Основное блюдо 150–200 г + овощи или фрукт 80–100 г",
-    cooking: "Соберите тарелку из указанного блюда и свежих овощей или фрукта.",
-    replacement: mealReplacement(dish, "breakfast", ctx),
-  };
+  const appetizingBreakfast = tryAppetizingHomeDishFields(dish, "breakfast", ctx);
+  if (appetizingBreakfast) {
+    return appetizingBreakfast;
+  }
+
+  return buildBreakfastGenericFallback(dish, ctx);
 }
 
 export function buildBreakfastFields(
@@ -1227,17 +1769,18 @@ function buildLunchFieldsInner(
     return dairyVeg;
   }
 
+  const appetizingLunch = tryAppetizingHomeDishFields(dish, "lunch", ctx);
+  if (appetizingLunch) {
+    return appetizingLunch;
+  }
+
   const vegGrain = buildVegetarianGrainMealFields(dish, ctx, "lunch");
   if (vegGrain) {
     return vegGrain;
   }
 
   if (!dishMentionsMeatOrFish(dish) && protein.key === "смешанное") {
-    return {
-      portion: "Крупа или овощи 200–250 г + зелень",
-      cooking: `${starchCookingLine(dish, gluten)} ${vegetableSideCookingLine(dish)}`,
-      replacement: mealReplacement(dish, "lunch", ctx),
-    };
+    return buildMixedVegetarianFallback(dish, "lunch", ctx);
   }
 
   const fishLunch = inferFishPortionSpec(dish);
@@ -1353,13 +1896,13 @@ function buildDinnerFieldsInner(
     return vegGrain;
   }
 
+  const appetizingDinner = tryAppetizingHomeDishFields(dish, "dinner", ctx);
+  if (appetizingDinner) {
+    return appetizingDinner;
+  }
+
   if (!dishMentionsMeatOrFish(dish) && protein.key === "смешанное") {
-    return {
-      portion: "Овощи или крупа 200–250 г + зелень",
-      cooking:
-        "Овощи потушите под крышкой или запеките; зелень и лимонный сок — перед подачей.",
-      replacement: mealReplacement(dish, "dinner", ctx),
-    };
+    return buildMixedVegetarianFallback(dish, "dinner", ctx);
   }
 
   const acc = proteinToAccusative(protein.phrase);
@@ -1382,6 +1925,11 @@ function buildSnackFieldsInner(
   ctx: MealFieldContext,
 ): Pick<ProgramMeal, "portion" | "cooking" | "replacement"> {
   const d = dish.toLowerCase();
+
+  const appetizingSnack = tryAppetizingHomeDishFields(dish, "snack", ctx);
+  if (appetizingSnack) {
+    return appetizingSnack;
+  }
 
   if (isNutsAndDriedFruitSnack(d)) {
     return {
@@ -1566,10 +2114,65 @@ function buildSnackFieldsInner(
       replacement: mealReplacement(dish, "snack", ctx),
     };
   }
+  if (
+    d.includes("яблок") &&
+    (d.includes("запеч") || d.includes("кориц"))
+  ) {
+    return {
+      portion: "Яблоко 1–2 шт. (150–180 г)",
+      cooking:
+        "Яблоки вырежьте сердцевину, запеките до мягкости; сверху — щепотка корицы.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+  if (d.includes("тыкв")) {
+    return {
+      portion: "Тыква 150–200 г",
+      cooking: d.includes("дольк")
+        ? "Тыкву нарежьте дольками, сбрызните маслом и паприкой, запеките до мягкости."
+        : "Тыкву запеките в духовке до мягкости; можно добавить травы.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+  if (d.includes("свёкл") || d.includes("свекл")) {
+    return {
+      portion: "Свёкла 150–180 г",
+      cooking:
+        "Свёклу отварите до мягкости; подайте с укропом и каплей лимонного сока.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+  if (
+    d.includes("морков") &&
+    (d.includes("запеч") || d.includes("паприк") || d.includes("дольк"))
+  ) {
+    return {
+      portion: "Морковь 150–180 г",
+      cooking:
+        d.includes("паприк")
+          ? "Запеките дольками с паприкой до мягкости и лёгкой корочки, добавьте зелень."
+          : "Морковь нарежьте, запеките до мягкой корочки.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+  if (
+    d.includes("огуреч") &&
+    (d.includes("салат") || d.includes("укроп") || d.includes("лимон"))
+  ) {
+    return {
+      portion: "Огуречный салат 150–200 г",
+      cooking:
+        "Нарежьте огурец, добавьте укроп и немного лимонного сока по вкусу.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
   if (d.includes("смузи")) {
     return {
       portion: "Смузи 200–250 мл",
-      cooking: "Смешайте ингредиенты блендером до однородности.",
+      cooking:
+        d.includes("вод") || d.includes("ягод") || d.includes("банан")
+          ? "Смешайте ягоды или банан с водой блендером до однородности."
+          : "Смешайте ингредиенты блендером до однородности.",
       replacement: mealReplacement(dish, "snack", ctx),
     };
   }
@@ -1617,11 +2220,29 @@ function buildSnackFieldsInner(
     };
   }
 
-  return {
-    portion: "Перекус 100–150 г по составу блюда",
-    cooking: "Соберите перекус из продуктов, указанных в названии блюда.",
-    replacement: mealReplacement(dish, "snack", ctx),
-  };
+  if (d.includes("яблок")) {
+    return {
+      portion: "Яблоко 1 шт. (120–150 г)",
+      cooking: "Яблоко нарежьте дольками или подайте целиком.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+  if (d.includes("морков")) {
+    return {
+      portion: "Морковь 120–150 г",
+      cooking: "Морковь нарежьте соломкой или запеките до мягкости.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+  if (d.includes("огурец")) {
+    return {
+      portion: "Огурец 1 шт. (120–150 г)",
+      cooking: "Огурец нарежьте кружочками или соломкой.",
+      replacement: mealReplacement(dish, "snack", ctx),
+    };
+  }
+
+  return buildSnackGenericFallback(dish, ctx);
 }
 
 export function buildSnackFields(

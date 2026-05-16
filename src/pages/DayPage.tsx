@@ -7,6 +7,9 @@ import {
   getPersonalProgram,
   type PersonalProgram,
 } from "../modules/programBuilder";
+import { parseFoodConstraints } from "../modules/programBuilder/foodConstraints";
+import { loadPersonalProgram } from "../modules/programBuilder/programStorage";
+import { validatePersonalProgram } from "../modules/programBuilder/validatePersonalProgram";
 import { buildAssistantResponse } from "../modules/ai/assistantResponse";
 import { buildOlesyaChatResponse } from "../modules/ai/olesyaChatResponse";
 import {
@@ -360,7 +363,10 @@ export function DayPage({
   const [chatReply, setChatReply] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
-  const q = clientQuestionnaire ?? mergeQuestionnaireFromProfile(mock.user.profile);
+  const q = useMemo(() => {
+    if (clientQuestionnaire) return clientQuestionnaire;
+    return mergeQuestionnaireFromProfile(mock.user.profile);
+  }, [clientQuestionnaire, mock.user.profile]);
   const programConfigRaw = localStorage.getItem("nutrition.programConfig");
   let duration: 7 | 14 | 30 = 14;
   try {
@@ -379,7 +385,17 @@ export function DayPage({
     countCompletedDaysFromDailyActuals() + 1,
   );
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
-    null,
+    () => {
+      const cached = loadPersonalProgram();
+      if (!cached) {
+        return null;
+      }
+      const constraints = parseFoodConstraints(q);
+      if (validatePersonalProgram(cached, cached.totalDays, constraints)) {
+        return cached;
+      }
+      return null;
+    },
   );
   const [olesyaTip] = useState(() => {
     const tips = OLESYA_DAY_TIPS;
@@ -387,6 +403,10 @@ export function DayPage({
   });
 
   useEffect(() => {
+    if (personalProgram !== null) {
+      return;
+    }
+
     let mounted = true;
 
     getPersonalProgram(q, { duration }).then((program) => {
@@ -398,7 +418,7 @@ export function DayPage({
     return () => {
       mounted = false;
     };
-  }, [q, duration]);
+  }, [q, duration, personalProgram]);
 
   useEffect(() => {
     if (personalProgram === null) return;

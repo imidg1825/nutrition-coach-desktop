@@ -334,6 +334,330 @@ const SEAFOOD_REPLACEMENTS = [
   "мидии в томатном соусе",
 ];
 
+function isStrictConstraintSet(constraints: UserFoodConstraints): boolean {
+  const active = [
+    constraints.gluten,
+    constraints.lactose,
+    constraints.egg,
+    constraints.nuts,
+    constraints.meat,
+    constraints.fish || constraints.seaFish || constraints.riverFish,
+    constraints.seafood,
+  ].filter(Boolean).length;
+  return active >= 4;
+}
+
+const STRICT_GRAIN_MARKERS = [
+  "гречк",
+  "рис",
+  "киноа",
+  "пшён",
+  "пшено",
+  "перлов",
+  "овсян",
+  "булгур",
+  "манк",
+] as const;
+
+type StrictSemanticKind =
+  | "soup"
+  | "grain"
+  | "legumes"
+  | "potato"
+  | "vegetable"
+  | "snack_meal"
+  | "breakfast_light"
+  | "hummus";
+
+function textIsStrictSoup(text: string): boolean {
+  const t = text.toLowerCase();
+  return t.includes("суп") || t.includes("борщ") || t.includes("уха");
+}
+
+function textIsStrictLegumes(text: string): boolean {
+  return isLegumesText(text);
+}
+
+function textIsStrictPotato(text: string): boolean {
+  return text.toLowerCase().includes("картоф");
+}
+
+function textIsStrictGrain(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    STRICT_GRAIN_MARKERS.some((m) => t.includes(m)) ||
+    t.includes("каша") ||
+    t.includes("каши")
+  );
+}
+
+function sharesStrictGrainType(dish: string, replacement: string): boolean {
+  const d = dish.toLowerCase();
+  const r = replacement.toLowerCase();
+  for (const marker of STRICT_GRAIN_MARKERS) {
+    if (d.includes(marker) && r.includes(marker)) {
+      return true;
+    }
+  }
+  if (d.includes("каша") && r.includes("каша")) {
+    return true;
+  }
+  return false;
+}
+
+/** Обеденные/ужинные блюда — не для завтрака. */
+function textIsLunchMainStyle(text: string): boolean {
+  const t = text.toLowerCase();
+  if (textIsStrictSoup(t)) {
+    return true;
+  }
+  if (textIsStrictPotato(t) && !t.includes("хлебц")) {
+    return true;
+  }
+  if (t.includes("салат") && t.includes("запеч")) {
+    return true;
+  }
+  if (t.includes("капуста") && t.includes("тушён")) {
+    return true;
+  }
+  if (t.includes("рис с томл") || t.includes("рис с туш")) {
+    return true;
+  }
+  return false;
+}
+
+function textIsBreakfastAppropriate(text: string): boolean {
+  const t = text.toLowerCase();
+  if (textIsLunchMainStyle(t)) {
+    return false;
+  }
+  if (textIsStrictLegumes(t) && !isHummusText(t)) {
+    return false;
+  }
+  return (
+    t.includes("хлебц") ||
+    t.includes("каша") ||
+    textIsStrictGrain(t) ||
+    t.includes("тыкв") ||
+    t.includes("яблок") ||
+    t.includes("киноа") ||
+    t.includes("груш") ||
+    t.includes("банан") ||
+    t.includes("фрукт")
+  );
+}
+
+function textIsSnackAppropriate(text: string): boolean {
+  const t = text.toLowerCase();
+  if (textIsStrictSoup(t)) {
+    return false;
+  }
+  if (textIsStrictPotato(t) && !t.includes("дольк")) {
+    return false;
+  }
+  if (
+    textIsStrictLegumes(t) &&
+    !isHummusText(t) &&
+    (t.includes("фасол") || t.includes("чечевиц") || t.includes("нут"))
+  ) {
+    return false;
+  }
+  if (textIsLunchMainStyle(t)) {
+    return false;
+  }
+  return (
+    t.includes("яблок") ||
+    t.includes("морков") ||
+    t.includes("огуреч") ||
+    t.includes("нарезк") ||
+    t.includes("фрукт") ||
+    t.includes("груш") ||
+    t.includes("банан") ||
+    t.includes("хумус") ||
+    t.includes("свёкл") ||
+    t.includes("свекл")
+  );
+}
+
+function detectStrictSourceKind(dish: string, slot: MealSlot): StrictSemanticKind {
+  const t = dish.toLowerCase();
+  if (slot === "snack") {
+    return isHummusText(t) ? "hummus" : "snack_meal";
+  }
+  if (textIsStrictSoup(t)) {
+    return "soup";
+  }
+  if (slot === "breakfast") {
+    if (textIsStrictGrain(t)) {
+      return "grain";
+    }
+    if (textIsStrictLegumes(t)) {
+      return "legumes";
+    }
+    if (t.includes("хлебц") || t.includes("тост")) {
+      return "breakfast_light";
+    }
+    return "vegetable";
+  }
+  if (textIsStrictLegumes(t)) {
+    return "legumes";
+  }
+  if (textIsStrictPotato(t)) {
+    return "potato";
+  }
+  if (textIsStrictGrain(t)) {
+    return "grain";
+  }
+  return "vegetable";
+}
+
+function detectStrictReplacementKind(
+  replacement: string,
+  slot: MealSlot,
+): StrictSemanticKind {
+  const t = replacement.toLowerCase();
+  if (isHummusText(t)) {
+    return "hummus";
+  }
+  if (textIsStrictSoup(t)) {
+    return "soup";
+  }
+  if (slot === "snack") {
+    return "snack_meal";
+  }
+  if (slot === "breakfast" && textIsBreakfastAppropriate(t)) {
+    if (textIsStrictGrain(t)) {
+      return "grain";
+    }
+    if (t.includes("хлебц") || t.includes("тост")) {
+      return "breakfast_light";
+    }
+    return "vegetable";
+  }
+  if (textIsStrictLegumes(t)) {
+    return "legumes";
+  }
+  if (textIsStrictPotato(t)) {
+    return "potato";
+  }
+  if (textIsStrictGrain(t)) {
+    return "grain";
+  }
+  return "vegetable";
+}
+
+function strictReplacementFitsDish(
+  dish: string,
+  slot: MealSlot,
+  replacement: string,
+): boolean {
+  const r = replacement.toLowerCase();
+  const sourceKind = detectStrictSourceKind(dish, slot);
+  const replKind = detectStrictReplacementKind(replacement, slot);
+
+  if (isHummusText(r) && slot !== "snack") {
+    return false;
+  }
+
+  if (slot === "snack") {
+    return textIsSnackAppropriate(r);
+  }
+
+  if (slot === "breakfast") {
+    if (!textIsBreakfastAppropriate(r)) {
+      return false;
+    }
+    if (
+      (sourceKind === "grain" || sourceKind === "breakfast_light") &&
+      sharesStrictGrainType(dish, replacement)
+    ) {
+      return false;
+    }
+    if (sourceKind === "legumes" && textIsStrictLegumes(r)) {
+      return false;
+    }
+    return true;
+  }
+
+  if (sourceKind === "soup") {
+    return replKind !== "soup" && !textIsStrictLegumes(r);
+  }
+
+  if (sourceKind === "legumes") {
+    return replKind !== "legumes";
+  }
+
+  if (sourceKind === "potato") {
+    return replKind !== "potato";
+  }
+
+  if (sourceKind === "grain") {
+    return !sharesStrictGrainType(dish, replacement);
+  }
+
+  return replKind !== "soup";
+}
+
+function filterStrictReplacementsSemantically(
+  dish: string,
+  slot: MealSlot,
+  options: string[],
+): string[] {
+  const semantic = options.filter((o) => strictReplacementFitsDish(dish, slot, o));
+  return semantic.length > 0 ? semantic : options;
+}
+
+const STRICT_LUNCH_DINNER_REPLACEMENTS = [
+  "картофель дольками с паприкой и зелёным салатом",
+  "рис с томлёными овощами и зеленью",
+  "тёплый салат из запечённых овощей с зеленью",
+  "капуста, тушённая с морковью и томатом",
+  "суп с чечевицей и овощами",
+  "овощной суп",
+];
+
+const STRICT_BREAKFAST_REPLACEMENTS = [
+  "рисовые хлебцы с томатом, зеленью и щепоткой соли",
+  "киноа с тёплыми овощами и зеленью",
+  "тыква дольками с травами и лёгкой корочкой",
+  "запечённое яблоко с корицей",
+  "гречневая каша с яблоком",
+  "рисовая каша с грушей",
+  "овсянка на воде с фруктом",
+];
+
+const STRICT_SNACK_REPLACEMENTS = [
+  "огуречный салат с укропом и каплей лимона",
+  "запечённое яблоко с корицей",
+  "морковь дольками с паприкой и зеленью",
+  "овощная нарезка с зеленью",
+  "фруктовый салат",
+  "овощи с хумусом",
+];
+
+function strictReplacementOptions(slot: MealSlot): string[] {
+  if (slot === "snack") {
+    return STRICT_SNACK_REPLACEMENTS;
+  }
+  if (slot === "breakfast") {
+    return STRICT_BREAKFAST_REPLACEMENTS;
+  }
+  return STRICT_LUNCH_DINNER_REPLACEMENTS;
+}
+
+function applyReplacementSafetyFilters(
+  options: string[],
+  ctx: ReplacementContext,
+): string[] {
+  let opts = filterOptions(options, ctx.constraints);
+  opts = filterEggReplacements(opts, ctx.constraints);
+  opts = filterFishReplacements(opts, ctx.constraints);
+  opts = filterGlutenReplacements(opts, ctx.constraints);
+  opts = filterHummusWhenLimitReached(opts, ctx.constraints);
+  opts = filterRabbitWhenLimitReached(opts, ctx.constraints);
+  return opts;
+}
+
 function filterHummusWhenLimitReached(
   options: string[],
   constraints: UserFoodConstraints,
@@ -359,6 +683,229 @@ function filterDairyReplacementsForDairyDish(
   }
   const nonDairy = options.filter((o) => !isDairyReplacementText(o));
   return nonDairy.length > 0 ? nonDairy : options;
+}
+
+function filterHummusForDairyDish(dish: string, options: string[]): string[] {
+  const family = detectDishFamily(dish);
+  if (family !== "dairy" && family !== "syrniki" && family !== "tvorogBake") {
+    return options;
+  }
+  const withoutHummus = options.filter((o) => !isHummusText(o));
+  return withoutHummus.length > 0 ? withoutHummus : options;
+}
+
+function isMeatLunchDinnerSlot(slot: MealSlot): boolean {
+  return slot === "lunch" || slot === "dinner";
+}
+
+/** Белковая замена для meat lunch/dinner (не snack-like hummus). */
+function isMeatDinnerProteinReplacement(
+  text: string,
+  constraints: UserFoodConstraints,
+): boolean {
+  if (isHummusText(text)) {
+    return false;
+  }
+  const o = text.toLowerCase();
+  if (
+    (isFishDishText(o) || isSeafoodDishText(o)) &&
+    !fishReplacementBlocked(text, constraints)
+  ) {
+    return true;
+  }
+  if (
+    o.includes("фасол") ||
+    o.includes("чечевиц") ||
+    o.includes("нут") ||
+    o.includes("бобов") ||
+    (o.includes("рагу") && o.includes("нут"))
+  ) {
+    return true;
+  }
+  if (o.includes("суп") || o.includes("борщ") || o.includes("щи")) {
+    return true;
+  }
+  if (o.includes("творог")) {
+    return true;
+  }
+  if (
+    (o.includes("сыр") && !o.includes("сырник")) &&
+    !constraints.lactose
+  ) {
+    return true;
+  }
+  if (textContainsEgg(o) && !constraints.egg) {
+    return true;
+  }
+  return false;
+}
+
+/** Крупа/каша без выраженного белка — слабая замена для meat lunch/dinner. */
+function isPlainGrainReplacement(text: string): boolean {
+  const o = text.toLowerCase();
+  const hasGrain =
+    o.includes("гречк") ||
+    o.includes("каша") ||
+    o.includes("пшён") ||
+    o.includes("пшено") ||
+    o.includes("рисовая каша") ||
+    o.includes("перлов") ||
+    o.includes("булгур") ||
+    o.includes("киноа") ||
+    o.includes("манк");
+  if (!hasGrain || o.includes("суп")) {
+    return false;
+  }
+  if (
+    isFishDishText(o) ||
+    isSeafoodDishText(o) ||
+    isPoultryDish(o) ||
+    o.includes("говядин") ||
+    o.includes("фасол") ||
+    o.includes("чечевиц") ||
+    o.includes("нут") ||
+    o.includes("бобов") ||
+    o.includes("творог") ||
+    textContainsEgg(o) ||
+    (o.includes("сыр") && !o.includes("сырник"))
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function filterHummusForMeatDish(
+  dish: string,
+  slot: MealSlot,
+  options: string[],
+  constraints: UserFoodConstraints,
+): string[] {
+  const family = detectDishFamily(dish);
+  if (family !== "meat" || !isMeatLunchDinnerSlot(slot)) {
+    return options;
+  }
+  const preferred = options.filter((o) =>
+    isMeatDinnerProteinReplacement(o, constraints),
+  );
+  if (preferred.length === 0) {
+    return options;
+  }
+  const withoutHummus = options.filter((o) => !isHummusText(o));
+  return withoutHummus.length > 0 ? withoutHummus : options;
+}
+
+function filterPlainGrainForMeatDish(
+  dish: string,
+  slot: MealSlot,
+  options: string[],
+  constraints: UserFoodConstraints,
+): string[] {
+  const family = detectDishFamily(dish);
+  if (family !== "meat" || !isMeatLunchDinnerSlot(slot)) {
+    return options;
+  }
+  const preferred = options.filter((o) =>
+    isMeatDinnerProteinReplacement(o, constraints),
+  );
+  if (preferred.length === 0) {
+    return options;
+  }
+  const withoutGrain = options.filter((o) => !isPlainGrainReplacement(o));
+  return withoutGrain.length > 0 ? withoutGrain : options;
+}
+
+/** Смещение score: предпочитаем рыбную/суповую/не-хумусовую замену под тип блюда. */
+function replacementContextBias(
+  dish: string,
+  option: string,
+  constraints: UserFoodConstraints,
+  slot: MealSlot,
+  skipMeatDinnerBias?: boolean,
+): number {
+  const d = dish.toLowerCase();
+  const o = option.toLowerCase();
+  let bias = 0;
+
+  const srcFish = isFishDishText(d) || isSeafoodDishText(d);
+  if (srcFish) {
+    const optFish =
+      (isFishDishText(o) || isSeafoodDishText(o)) && !fishReplacementBlocked(o, constraints);
+    if (optFish) {
+      bias -= 900;
+    }
+    if (isPoultryDish(o) || o.includes("говядин")) {
+      bias += 700;
+    }
+  }
+
+  if (d.includes("суп") || d.includes("борщ") || d.includes("щи")) {
+    if (o.includes("суп")) {
+      bias -= 900;
+    }
+    if (
+      (o.includes("гречк") || o.includes("каша") || o.includes("рисовая каша")) &&
+      !o.includes("суп")
+    ) {
+      bias += 650;
+    }
+  }
+
+  const family = detectDishFamily(dish);
+  if (family === "dairy" || family === "syrniki" || family === "tvorogBake") {
+    if (isHummusText(o)) {
+      bias += 500;
+    }
+    if (
+      o.includes("творог") ||
+      o.includes("йогурт") ||
+      o.includes("омлет") ||
+      (o.includes("сыр") && !o.includes("сырник")) ||
+      o.includes("фрукт") ||
+      o.includes("овсян") ||
+      o.includes("авокадо")
+    ) {
+      if (!constraints.lactose || !isDairyReplacementText(o)) {
+        bias -= 400;
+      }
+    }
+  }
+
+  if (
+    !skipMeatDinnerBias &&
+    isMeatLunchDinnerSlot(slot) &&
+    family === "meat"
+  ) {
+    if (isHummusText(o)) {
+      bias += 700;
+    }
+    if (
+      (isFishDishText(o) || isSeafoodDishText(o)) &&
+      !fishReplacementBlocked(option, constraints)
+    ) {
+      bias -= 400;
+    }
+    if (
+      !isHummusText(o) &&
+      (o.includes("фасол") ||
+        o.includes("чечевиц") ||
+        o.includes("нут") ||
+        o.includes("бобов") ||
+        (o.includes("рагу") && o.includes("нут")))
+    ) {
+      bias -= 300;
+    }
+    if (o.includes("суп") || o.includes("борщ") || o.includes("щи")) {
+      bias -= 150;
+    }
+    if (o.includes("творог") || (textContainsEgg(o) && !constraints.egg)) {
+      bias -= 200;
+    }
+    if (isPlainGrainReplacement(option)) {
+      bias += 700;
+    }
+  }
+
+  return bias;
 }
 
 /** Не предлагать замену, почти совпадающую с блюдом. */
@@ -469,12 +1016,12 @@ const MEAT_REPLACEMENT_POOL = [
 ];
 
 const DAIRY_REPLACEMENT_POOL = [
-  "хумус с овощами",
   "тост с авокадо",
   "овсянка с фруктом",
   "овощи с сыром",
   "гречневая каша с яблоком",
   "фасоль с овощами",
+  "хумус с овощами",
   "овощи с хумусом",
 ];
 
@@ -572,6 +1119,9 @@ function pickBestReplacement(
   opts = filterEggReplacements(opts, ctx.constraints);
   opts = filterFishReplacements(opts, ctx.constraints);
   opts = filterDairyReplacementsForDairyDish(ctx.dish, opts);
+  opts = filterHummusForDairyDish(ctx.dish, opts);
+  opts = filterHummusForMeatDish(ctx.dish, ctx.slot, opts, ctx.constraints);
+  opts = filterPlainGrainForMeatDish(ctx.dish, ctx.slot, opts, ctx.constraints);
 
   if (isPoultryDish(ctx.dish)) {
     const nonPoultry = opts.filter((o) => !isPoultryDish(o));
@@ -658,6 +1208,13 @@ function pickBestReplacement(
     option,
     score:
       semanticPenalty(ctx, option) +
+      replacementContextBias(
+        ctx.dish,
+        option,
+        ctx.constraints,
+        ctx.slot,
+        ctx.skipMeatDinnerBias,
+      ) +
       (stableHash(ctx.dayIndex, ctx.slot, SLOT_SALT[ctx.slot], option) % 97),
   }));
   scored.sort((a, b) => a.score - b.score || a.option.localeCompare(b.option, "ru"));
@@ -699,6 +1256,8 @@ export type ReplacementContext = {
   programSemanticCounts?: Record<string, number>;
   /** semanticKey за последние 3 дня (без сегодня). */
   recentSemanticKeys?: string[];
+  /** Не смещать score для meat lunch/dinner (strict pool). */
+  skipMeatDinnerBias?: boolean;
 };
 
 type DishFamily =
@@ -789,10 +1348,14 @@ function dishSpecificReplacements(ctx: ReplacementContext): string[] | null {
     (d.includes("овощ") || d.includes("запеч") || d.includes("пар"))
   ) {
     return [
-      "индейка с овощами",
-      "курица с овощами",
       "треска с овощами",
       "судак с картофелем",
+      "минтай с картофелем",
+      "креветки с овощами",
+      "мидии в томатном соусе",
+      "хек с рисом",
+      "индейка с овощами",
+      "курица с овощами",
       "фасоль с овощами",
     ];
   }
@@ -822,8 +1385,16 @@ function dishSpecificReplacements(ctx: ReplacementContext): string[] | null {
   if (isPoultryDish(d) && d.includes("салат")) {
     return POULTRY_CROSS_REPLACEMENTS;
   }
-  if (d.includes("суп") && d.includes("бобов") && isPoultryDish(d)) {
-    return POULTRY_CROSS_REPLACEMENTS;
+  if (d.includes("суп") && isPoultryDish(d)) {
+    return [
+      "овощной суп",
+      "суп с чечевицей и овощами",
+      "суп с минтаем и овощами",
+      "куриный суп с овощами",
+      "треска с овощами",
+      "индейка с овощами",
+      "курица с овощами",
+    ];
   }
   if (isPoultryDish(d) && !d.includes("суп")) {
     return POULTRY_CROSS_REPLACEMENTS;
@@ -922,12 +1493,12 @@ function familyReplacements(family: DishFamily, slot: MealSlot): string[] {
       return NUTS_REPLACEMENTS;
     case "fish":
       return [
-        "индейка с овощами",
-        "курица с овощами",
-        "чечевица с овощами",
         ...SEA_FISH_REPLACEMENTS,
         ...RIVER_FISH_REPLACEMENTS,
         ...SEAFOOD_REPLACEMENTS,
+        "чечевица с овощами",
+        "индейка с овощами",
+        "курица с овощами",
       ];
     case "meat":
       return MEAT_REPLACEMENTS;
@@ -995,6 +1566,21 @@ function constraintOverrides(ctx: ReplacementContext, family: DishFamily): strin
  * Подбор replacement с учётом семейства блюда и ограничений пользователя.
  */
 export function buildSmartReplacement(ctx: ReplacementContext): string {
+  if (isStrictConstraintSet(ctx.constraints)) {
+    const safeStrict = applyReplacementSafetyFilters(
+      strictReplacementOptions(ctx.slot),
+      ctx,
+    );
+    const strictOpts = filterStrictReplacementsSemantically(
+      ctx.dish,
+      ctx.slot,
+      safeStrict,
+    );
+    if (strictOpts.length > 0) {
+      return pickBestReplacement({ ...ctx, skipMeatDinnerBias: true }, strictOpts);
+    }
+  }
+
   const family = detectDishFamily(ctx.dish);
   let options =
     dishSpecificReplacements(ctx) ??
@@ -1015,12 +1601,7 @@ export function buildSmartReplacement(ctx: ReplacementContext): string {
     }
   }
 
-  options = filterOptions(options, ctx.constraints);
-  options = filterEggReplacements(options, ctx.constraints);
-  options = filterFishReplacements(options, ctx.constraints);
-  options = filterGlutenReplacements(options, ctx.constraints);
-  options = filterHummusWhenLimitReached(options, ctx.constraints);
-  options = filterRabbitWhenLimitReached(options, ctx.constraints);
+  options = applyReplacementSafetyFilters(options, ctx);
   if (isRabbitText(ctx.dish) && isRabbitProgramLimitReached()) {
     options = filterOptions(RABBIT_ALTERNATIVE_REPLACEMENTS, ctx.constraints);
   }

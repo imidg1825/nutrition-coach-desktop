@@ -8,10 +8,13 @@ import {
   type PersonalProgram,
 } from "../modules/programBuilder";
 import type { ProgramDay, ProgramMeal } from "../modules/programBuilder/types";
+import { parseFoodConstraints } from "../modules/programBuilder/foodConstraints";
 import {
   clearPersonalProgram,
+  loadPersonalProgram,
   loadPersonalProgramExplanation,
 } from "../modules/programBuilder/programStorage";
+import { validatePersonalProgram } from "../modules/programBuilder/validatePersonalProgram";
 import type { PageProps } from "./pageProps";
 
 function orderedMealLines(day: ProgramDay, maxLines = 4): string[] {
@@ -144,7 +147,17 @@ export function NutritionPlanPage(
     // fallback 14
   }
   const [personalProgram, setPersonalProgram] = useState<PersonalProgram | null>(
-    null,
+    () => {
+      const cached = loadPersonalProgram();
+      if (!cached) {
+        return null;
+      }
+      const constraints = parseFoodConstraints(q);
+      if (validatePersonalProgram(cached, cached.totalDays, constraints)) {
+        return cached;
+      }
+      return null;
+    },
   );
   const [programExplanation, setProgramExplanation] = useState<string | null>(
     null,
@@ -163,12 +176,16 @@ export function NutritionPlanPage(
   }, []);
 
   useEffect(() => {
+    if (personalProgram !== null || isRebuilding) {
+      return;
+    }
+
     getPersonalProgram(q, { duration }).then((program) => {
       if (mountedRef.current) {
         setPersonalProgram(program);
       }
     });
-  }, [q, duration]);
+  }, [q, duration, personalProgram, isRebuilding]);
 
   useEffect(() => {
     setProgramExplanation(loadPersonalProgramExplanation());
@@ -234,7 +251,7 @@ export function NutritionPlanPage(
       });
   };
 
-  if (personalProgram === null) {
+  if (personalProgram === null || isRebuilding) {
     return (
       <div className="p-6 text-sm text-slate-500">
         {isRebuilding
@@ -389,13 +406,10 @@ export function NutritionPlanPage(
       ) : null}
 
       {!isExplanationReady && hasAiKey && !programExplanation?.trim() ? (
-        <div className="p-6 text-sm text-slate-500">
-          Олеся готовит пояснение к плану...
-        </div>
+        <p className="text-sm text-slate-500">Олеся готовит пояснение к плану...</p>
       ) : null}
 
-      {isExplanationReady ? (
-        <section className="space-y-3">
+      <section className="space-y-3">
           <h2 className="text-base font-semibold tracking-tight text-slate-900">
             {`Ваш план питания на ${totalDays} дней`}
           </h2>
@@ -544,8 +558,7 @@ export function NutritionPlanPage(
               </div>
             </section>
           ) : null}
-        </section>
-      ) : null}
+      </section>
     </div>
   );
 }

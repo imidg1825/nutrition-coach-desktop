@@ -95,6 +95,63 @@ function inferAquaticContainsTags(d: string): ContainsTag[] {
   return tags;
 }
 
+/** Согласовано по смыслу с foodConstraints.ts (textViolatesGluten), без импорта — цикл catalogMeta ↔ foodConstraints. */
+function hasGlutenFreeLabelBefore(text: string, wordIndex: number): boolean {
+  const before = text.slice(Math.max(0, wordIndex - 28), wordIndex);
+  return before.includes("безглютен") || before.includes("без глютен");
+}
+
+const GLUTEN_MARKERS_ALWAYS_LOCAL = [
+  "булгур",
+  "пшеница",
+  "пшеничн",
+  "цельнозерн",
+  "мука",
+  "паста",
+  "лапша",
+  "макарон",
+  "спагетти",
+  "мант",
+  "пельмен",
+  "лаваш",
+  "овсяноблин",
+  "булка",
+  "сухар",
+  "сэндвич",
+  "сандвич",
+] as const;
+
+const GLUTEN_MARKERS_UNLESS_LABELED_LOCAL = [
+  "хлебц",
+  "хлеб",
+  "тост",
+  "печень",
+  "овсян",
+  "блин",
+] as const;
+
+function textLikelyContainsGluten(dishText: string): boolean {
+  const t = dishText.toLowerCase();
+  for (const w of GLUTEN_MARKERS_ALWAYS_LOCAL) {
+    if (t.includes(w)) {
+      return true;
+    }
+  }
+  for (const w of GLUTEN_MARKERS_UNLESS_LABELED_LOCAL) {
+    let idx = 0;
+    while ((idx = t.indexOf(w, idx)) >= 0) {
+      if (!hasGlutenFreeLabelBefore(t, idx)) {
+        return true;
+      }
+      idx += w.length;
+    }
+  }
+  if (t.includes("сырник")) {
+    return true;
+  }
+  return false;
+}
+
 export function inferContains(item: CatalogDish): ContainsTag[] {
   if (item.contains && item.contains.length > 0) return item.contains;
 
@@ -126,14 +183,7 @@ export function inferContains(item: CatalogDish): ContainsTag[] {
     tags.push("meat");
   }
   if (d.includes("орех") || d.includes("арахис")) tags.push("nuts");
-  if (
-    d.includes("тост") ||
-    d.includes("хлеб") ||
-    d.includes("паста") ||
-    d.includes("лапша") ||
-    d.includes("макарон") ||
-    d.includes("сырник")
-  ) {
+  if (textLikelyContainsGluten(d)) {
     tags.push("gluten");
   }
 
