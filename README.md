@@ -57,7 +57,7 @@
 
 ## Технологии
 
-Tauri, React, TypeScript, Tailwind CSS, localStorage, Rust toolchain для desktop-сборки.
+Tauri, React, TypeScript, Vite, Tailwind CSS, localStorage, OpenRouter API для чата с Олесей и пояснений. План питания собирается локально из базы блюд. Для сборок: Rust toolchain (Tauri/desktop), Android Studio / Android SDK (Android), Xcode / macOS toolchain (macOS/iOS на Mac), Git / GitHub для версионирования.
 
 ## Архитектура данных
 
