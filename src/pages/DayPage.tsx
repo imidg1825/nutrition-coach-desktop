@@ -8,6 +8,8 @@ import {
   type PersonalProgram,
 } from "../modules/programBuilder";
 import { parseFoodConstraints } from "../modules/programBuilder/foodConstraints";
+import { getFoodConstraintsWarningMessage } from "../modules/programBuilder/foodConstraintsWarning";
+import { FoodConstraintsWarningBanner } from "../components/FoodConstraintsWarningBanner";
 import { loadPersonalProgram } from "../modules/programBuilder/programStorage";
 import { validatePersonalProgram } from "../modules/programBuilder/validatePersonalProgram";
 import { buildAssistantResponse } from "../modules/ai/assistantResponse";
@@ -405,6 +407,10 @@ export function DayPage({
     return tips[Math.floor(Math.random() * tips.length)] ?? "";
   });
 
+  const constraintsWarningMessage = getFoodConstraintsWarningMessage(
+    parseFoodConstraints(q),
+  );
+
   const olesyaPlannedDay = useMemo(() => {
     if (!personalProgram) {
       return null;
@@ -599,6 +605,9 @@ export function DayPage({
       <h1 className="text-xl font-semibold">
         День {displayDayNumber} из {totalDays}
       </h1>
+      {constraintsWarningMessage ? (
+        <FoodConstraintsWarningBanner message={constraintsWarningMessage} />
+      ) : null}
       {returnAfterBreakMessage ? (
         <div className="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3 text-sm leading-relaxed text-amber-950">
           {returnAfterBreakMessage}

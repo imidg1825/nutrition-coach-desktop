@@ -9,6 +9,8 @@ import {
 } from "../modules/programBuilder";
 import type { ProgramDay, ProgramMeal } from "../modules/programBuilder/types";
 import { parseFoodConstraints } from "../modules/programBuilder/foodConstraints";
+import { getFoodConstraintsWarningMessage } from "../modules/programBuilder/foodConstraintsWarning";
+import { FoodConstraintsWarningBanner } from "../components/FoodConstraintsWarningBanner";
 import {
   clearPersonalProgram,
   loadPersonalProgram,
@@ -225,6 +227,10 @@ export function NutritionPlanPage(
     return () => window.clearTimeout(t);
   }, [hasAiKey, personalProgram, programExplanation]);
 
+  const constraintsWarningMessage = isDemo
+    ? null
+    : getFoodConstraintsWarningMessage(parseFoodConstraints(q));
+
   const handleRebuildPlan = () => {
     if (
       !window.confirm(
@@ -365,6 +371,10 @@ export function NutritionPlanPage(
         <div className="rounded-xl border border-amber-200/90 bg-amber-50/80 px-4 py-4 text-sm leading-relaxed text-amber-950">
           {medicalBlockLine}
         </div>
+      ) : null}
+
+      {constraintsWarningMessage ? (
+        <FoodConstraintsWarningBanner message={constraintsWarningMessage} />
       ) : null}
 
       <section className="rounded-xl border border-slate-200/90 bg-white px-4 py-4 shadow-sm">
